@@ -53,6 +53,7 @@ export function createGame({ level = 0, cpuIq = 1, seed = (Math.random() * 2 ** 
     walk: 0,
     deaths: 0,
     escapeT: 0,
+    laughT: 0, // seconds left of gloating after our trap caught the rival
   }));
   return {
     t: 0,
@@ -200,6 +201,7 @@ function updateTimers(state, spy) {
     return;
   }
   if (spy.stun > 0) spy.stun -= DT;
+  if (spy.laughT > 0) spy.laughT -= DT;
   if (spy.invuln > 0) spy.invuln -= DT;
   if (spy.doorCd > 0) spy.doorCd -= DT;
   if (spy.state === 'dead') {
@@ -408,6 +410,14 @@ function springTrap(state, spy, trap, where) {
   const own = trap.owner === spy.idx;
   kill(state, spy, own ? 'Caught by your own trap!' : `Caught by a ${TRAP_BY_ID[trap.type].name.toLowerCase()}!`);
   addScore(state, spy, TUNING.score.trapped, 'TRAPPED');
+  if (!own) gloat(state, state.spies[trap.owner]);
+}
+
+// The trap's owner has a good laugh at the rival's expense.
+function gloat(state, owner) {
+  if (owner.state !== 'alive') return;
+  owner.laughT = TUNING.laughTime;
+  emit(state, 'laugh', { spy: owner.idx, room: owner.room });
 }
 
 function kill(state, spy, text) {
@@ -418,6 +428,7 @@ function kill(state, spy, text) {
   spy.mapOpen = false;
   if (spy.armed) spy.armed = null;
   spy.vx = spy.vz = 0;
+  spy.laughT = 0;
   spy.deaths++;
   emit(state, 'death', { spy: spy.idx, room: spy.room, x: spy.x, z: spy.z });
   msg(state, spy, text);
@@ -593,6 +604,7 @@ function updateBombs(state) {
         if (spy.state === 'alive' && spy.room === b.room) {
           kill(state, spy, b.owner === spy.idx ? 'Blown up by your own time bomb!' : 'Blown up by a time bomb!');
           addScore(state, spy, TUNING.score.trapped, 'BOOM');
+          if (b.owner !== spy.idx) gloat(state, state.spies[b.owner]);
         }
       }
     }

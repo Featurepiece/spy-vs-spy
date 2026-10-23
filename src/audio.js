@@ -99,6 +99,16 @@ export class Audio {
         this.noise(0.12, { vol: 0.3 * v, freq: 300, type: 'lowpass' });
         this.tone(900, 0.5, { vol: 0.08 * v, type: 'sine', slide: 300, delay: 0.05 });
         break;
+      case 'laugh': {
+        // A wheezy "heh-heh-heh": your own laugh, or the rival's taunting you
+        const lv = mine ? 0.13 : 0.08;
+        const base = e.spy === 0 ? 330 : 260;
+        for (let i = 0; i < 5; i++) {
+          this.tone(base - i * 12, 0.11, { vol: lv, delay: i * 0.17, type: 'sawtooth', slide: (base - i * 12) * 0.8 });
+          this.noise(0.09, { vol: lv * 0.6, freq: 1400, q: 2, delay: i * 0.17 });
+        }
+        break;
+      }
       case 'lowtime': if (mine) this.tone(1760, 0.06, { vol: 0.06 }); break;
       case 'map': if (mine) this.noise(0.15, { vol: 0.08, freq: 5000, q: 0.5 }); break;
       case 'ko': this.tone(400, 0.6, { vol: 0.12 * v, type: 'square', slide: 80 }); break;
