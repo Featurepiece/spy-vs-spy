@@ -184,6 +184,7 @@ export class Renderer {
       ctx.fillRect(-10, -10, VIEW_W + 20, HALF + 20);
       v.fade -= dt;
     }
+    if (!spy.mapOpen && state.level < TUNING.crumbs.offFromLevel) this.drawCrumbs(spy);
     if (!spy.mapOpen) this.drawBanner(state, spy, viewer, opts);
     if (v.msgT > 0) {
       v.msgT -= dt;
@@ -193,6 +194,20 @@ export class Renderer {
     }
     ctx.restore();
     this.drawPanel(state, spy, viewer, opts);
+  }
+
+  // Bread crumbs: read right to left, each arrow is the door to take to go back one room.
+  drawCrumbs(spy) {
+    if (!spy.trail.length) return;
+    const ctx = this.ctx;
+    const glyph = { n: '↑', s: '↓', w: '←', e: '→' };
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    spy.trail.forEach((side, i) => {
+      const newest = i === spy.trail.length - 1;
+      ctx.fillStyle = newest ? '#ffe066' : 'rgba(255,255,255,0.55)';
+      ctx.fillText(glyph[side], 40 + i * 18, FRONT_Y + 7);
+    });
   }
 
   drawBanner(state, spy, viewer, opts) {
@@ -285,6 +300,7 @@ export class Renderer {
       if (focus.type === 'furniture') {
         const f = state.embassy.furniture[focus.id];
         text = spy.armed ? `${opts.actKey}: set ${TRAP_BY_ID[spy.armed].name.toLowerCase()}` : `${opts.actKey}: search`;
+        if (!spy.armed && !f.fixture && (spy.hasCase || spy.items.length)) text += ` · ${opts.hideKey}: hide ${spy.hasCase ? 'briefcase' : spy.items[0]}`;
         [px, py] = f.wall === 'back' ? [fx(f.x, 0), BACK_Y - 108] : wallPt(f.wall === 'left' ? 'w' : 'e', f.z, 92);
         if (f.wall !== 'back') px += f.wall === 'left' ? 60 : -60;
       } else if (focus.type === 'door') {
@@ -407,6 +423,16 @@ export class Renderer {
     if (s.invuln > 0 && Math.floor(this.time * 16) % 2) ctx.globalAlpha = 0.4;
     const pose = poseOf(s);
     const flash = s.stun > TUNING.combat.hitstun - 0.08 && s.stun > 0;
+    if (s.armed === 'gun') {
+      // The gun's string trails behind the spy until the trap is set [manual]
+      ctx.strokeStyle = '#e6d7b0'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + s.face * 8 * k, y - 38 * k);
+      const wob = Math.sin(this.time * 6) * 4 * k;
+      ctx.quadraticCurveTo(x - s.face * 10 * k, y - 10 * k + wob, x - s.face * 34 * k, y - 1);
+      ctx.lineTo(x - s.face * 60 * k, y + 1);
+      ctx.stroke();
+    }
     const laugh = s.laughT > 0 && !s.action;
     drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh });
     ctx.globalAlpha = 1;
@@ -648,7 +674,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 function poseOf(s) {
   if (s.action) {
-    if (s.action.kind === 'search' || s.action.kind === 'set') return 'search';
+    if (s.action.kind === 'search' || s.action.kind === 'set' || s.action.kind === 'hide') return 'search';
     const mv = TUNING.combat[s.action.kind];
     const t = s.action.t;
     if (t < mv.startup) return s.action.kind === 'heavy' ? 'windup' : 'jabback';

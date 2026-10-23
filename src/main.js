@@ -41,6 +41,7 @@ const viewOpts = {
   labels: ['YOU', 'CPU'],
   actKey: isTouch ? 'Use' : 'Space',
   fightKeys: isTouch ? 'Jab / Smash' : 'J / K',
+  hideKey: isTouch ? 'Hide' : 'H',
   showOwnTraps: [true, false], // the computer's trap reminders stay hidden from you
 };
 

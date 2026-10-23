@@ -94,6 +94,7 @@ export class Audio {
       case 'death':
         [0, 1, 2, 3, 4, 5].forEach((i) => this.tone(523 * Math.pow(1.122, i * 2), 0.25, { vol: 0.06 * v, delay: 0.5 + i * 0.07, type: 'triangle' }));
         break;
+      case 'hide': if (mine) { this.tone(500, 0.08, { vol: 0.1, type: 'triangle' }); this.tone(380, 0.12, { vol: 0.1, type: 'triangle', delay: 0.08 }); } break;
       case 'defuse': if (mine) { this.tone(880, 0.08, { vol: 0.1 }); this.tone(1320, 0.12, { vol: 0.1, delay: 0.08 }); } break;
       case 'guard':
         this.noise(0.12, { vol: 0.3 * v, freq: 300, type: 'lowpass' });

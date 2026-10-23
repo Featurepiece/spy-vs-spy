@@ -14,7 +14,7 @@ import { rngPick } from './rng.js';
 export const DT = 1 / TUNING.tickRate;
 const X_MIN = 0.04, X_MAX = 0.96, Z_MIN = 0.03, Z_MAX = 0.97;
 
-export const EMPTY_INPUT = Object.freeze({ mx: 0, mz: 0, act: false, jab: false, heavy: false, trap: 0, map: false });
+export const EMPTY_INPUT = Object.freeze({ mx: 0, mz: 0, act: false, jab: false, heavy: false, trap: 0, map: false, hide: false });
 
 export const SPY_NAMES = ['Scarlet', 'Cobalt'];
 
@@ -50,6 +50,7 @@ export function createGame({ level = 0, cpuIq = 1, seed = (Math.random() * 2 ** 
     doorCd: 0,
     mapOpen: false,
     visited: { [embassy.startRoom]: true },
+    trail: [], // "bread crumbs": the door side to take to go back, newest last
     walk: 0,
     deaths: 0,
     escapeT: 0,
@@ -272,10 +273,17 @@ function handleInput(state, spy, inp) {
   }
 
   if (!busy && (inp.jab || inp.heavy)) {
+    // Swinging turns you to face the rival automatically [manual].
+    if (combat) {
+      const r = rivalOf(state, spy);
+      if (Math.abs(r.x - spy.x) > 0.005) spy.face = r.x > spy.x ? 1 : -1;
+    }
     spy.action = { kind: inp.heavy ? 'heavy' : 'jab', t: 0, hitDone: false };
     emit(state, 'swing', { spy: spy.idx, heavy: !!inp.heavy });
   } else if (!busy && inp.act) {
     doAction(state, spy, combat);
+  } else if (!busy && inp.hide) {
+    startHide(state, spy, combat);
   }
 
   move(state, spy, inp);
@@ -398,6 +406,12 @@ function passDoor(state, spy, door, side) {
   spy.room = other;
   [spy.x, spy.z] = DOOR_ARRIVE[arriveSide];
   spy.visited[other] = true;
+  // Going back the way you came eats a crumb; anything else lays one [manual: up to 9 rooms].
+  if (spy.trail[spy.trail.length - 1] === side) spy.trail.pop();
+  else {
+    spy.trail.push(arriveSide);
+    if (spy.trail.length > TUNING.crumbs.max) spy.trail.shift();
+  }
   emit(state, 'door', { spy: spy.idx, room: other });
   const rival = rivalOf(state, spy);
   if (rival.state === 'alive' && rival.room === other) emit(state, 'meet', { spy: spy.idx, room: other });
@@ -415,7 +429,10 @@ function springTrap(state, spy, trap, where) {
   const own = trap.owner === spy.idx;
   kill(state, spy, own ? 'Caught by your own trap!' : `Caught by a ${TRAP_BY_ID[trap.type].name.toLowerCase()}!`);
   addScore(state, spy, TUNING.score.trapped, 'TRAPPED');
-  if (!own) gloat(state, state.spies[trap.owner]);
+  if (!own) {
+    addScore(state, state.spies[trap.owner], TUNING.score.trapSprung, 'GOTCHA');
+    gloat(state, state.spies[trap.owner]);
+  }
 }
 
 // The trap's owner has a good laugh at the rival's expense.
@@ -448,6 +465,11 @@ function updateAction(state, spy) {
     if (act.t >= TUNING.searchTime) {
       spy.action = null;
       searchFurniture(state, spy, state.embassy.furniture[act.fid]);
+    }
+  } else if (act.kind === 'hide') {
+    if (act.t >= 0.35) {
+      spy.action = null;
+      hideInFurniture(state, spy, state.embassy.furniture[act.fid]);
     }
   } else if (act.kind === 'set') {
     if (act.t >= 0.35) {
@@ -495,6 +517,55 @@ function knockout(state, loser, winner) {
   emit(state, 'ko', { spy: loser.idx, by: winner.idx });
   kill(state, loser, 'Knocked out! Your things are hidden somewhere in this room.');
   msg(state, winner, 'Knockout! Search the room for their loot.');
+}
+
+// Hiding: put the briefcase (with everything in it) or a carried item into furniture [manual: "carry them with you or hide them"].
+function startHide(state, spy, combat) {
+  if (combat) {
+    emit(state, 'denied', { spy: spy.idx });
+    return;
+  }
+  if (!spy.hasCase && !spy.items.length) {
+    msg(state, spy, spy.remedy ? 'Only items and the briefcase can be hidden' : 'Nothing to hide');
+    emit(state, 'denied', { spy: spy.idx });
+    return;
+  }
+  if (spy.armed) {
+    msg(state, spy, 'Put the trap away first');
+    emit(state, 'denied', { spy: spy.idx });
+    return;
+  }
+  const focus = getFocus(state, spy);
+  const f = focus && focus.type === 'furniture' ? state.embassy.furniture[focus.id] : null;
+  if (!f || f.fixture) {
+    msg(state, spy, f ? "Things can't be hidden in there" : 'Stand next to furniture to hide things');
+    emit(state, 'denied', { spy: spy.idx });
+    return;
+  }
+  spy.action = { kind: 'hide', t: 0, fid: f.id };
+  emit(state, 'search', { spy: spy.idx });
+}
+
+function hideInFurniture(state, spy, f) {
+  // Opening the furniture sets off a trap in it, just like searching.
+  if (f.trap) {
+    const trap = TRAP_BY_ID[f.trap.type];
+    if (spy.remedy && spy.remedy === trap.remedy) {
+      defuse(state, spy, f.trap, { furniture: f.id });
+      f.trap = null;
+    } else {
+      const t = f.trap;
+      f.trap = null;
+      springTrap(state, spy, t, { furniture: f.id });
+      return;
+    }
+  }
+  for (const k of spy.items) f.contents.push({ t: 'item', k, lastHolder: spy.idx });
+  if (spy.hasCase) f.contents.push({ t: 'case', lastHolder: spy.idx });
+  msg(state, spy, spy.hasCase ? `Hid the briefcase${spy.items.length ? ` with ${spy.items.length} item${spy.items.length > 1 ? 's' : ''}` : ''}` : `Hid the ${spy.items[0]}`);
+  spy.items = [];
+  spy.hasCase = false;
+  emit(state, 'hide', { spy: spy.idx });
 }
 
 function setTrap(state, spy, trapId, target) {
@@ -609,7 +680,10 @@ function updateBombs(state) {
         if (spy.state === 'alive' && spy.room === b.room) {
           kill(state, spy, b.owner === spy.idx ? 'Blown up by your own time bomb!' : 'Blown up by a time bomb!');
           addScore(state, spy, TUNING.score.trapped, 'BOOM');
-          if (b.owner !== spy.idx) gloat(state, state.spies[b.owner]);
+          if (b.owner !== spy.idx) {
+            addScore(state, state.spies[b.owner], TUNING.score.trapSprung, 'GOTCHA');
+            gloat(state, state.spies[b.owner]);
+          }
         }
       }
     }
