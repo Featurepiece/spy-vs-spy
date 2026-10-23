@@ -51,8 +51,8 @@ export const TUNING = {
     respawnInvuln: 1.2, // [ours]
   },
 
-  // When your trap catches the rival, your spy laughs, wherever they are [Steven's memory of the original].
-  // How long it lasts, and that you keep control while laughing, are [ours].
+  // When your trap catches the rival, your spy stops and laughs, wherever they are [Steven's memory of the original].
+  // How long it lasts is [ours]; the clock keeps running meanwhile.
   laughTime: 2.2,
 
   guard: { stun: 0.7, knock: 0.25 }, // airport guard's boot [ours]

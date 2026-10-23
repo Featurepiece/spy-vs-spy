@@ -225,6 +225,11 @@ function updateTimers(state, spy) {
 }
 
 function handleInput(state, spy, inp) {
+  // Laughing at the rival: the spy stands still until the laugh is over [Steven's memory of the original].
+  if (spy.laughT > 0 && !spy.action) {
+    spy.vx = spy.vz = 0;
+    return;
+  }
   const combat = inCombat(state, spy);
   const busy = spy.action || spy.stun > 0;
 
