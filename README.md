@@ -17,6 +17,8 @@ No assets from the original game are used. This is a non-commercial fan project.
 - Five traps (bomb, spring, bucket on a door, gun on a door, time bomb), four remedies in wall fixtures.
 - Club fights when you meet: quick jab or slow heavy smash. A knockout hides the loser's items in that room.
 - The gadget panel: clock, strength, trap buttons, map, items and remedy.
+- Bread-crumb arrows under the room show the way back through the last 9 rooms (levels 1 and 2).
+- When your trap catches the rival you score and your spy stops to laugh.
 - Three computer skill levels.
 - Keyboard, gamepad and touch.
 
@@ -27,6 +29,7 @@ No assets from the original game are used. This is a non-commercial fan project.
 | WASD / arrows | Move. Walk into a doorway to go through |
 | Space / E | Search furniture, or set the trap you're holding |
 | 1–5, Q | Pick a trap (again to put it away), Q cycles |
+| H | Hide your briefcase or item in nearby furniture |
 | J / Z | Jab |
 | K / X | Heavy smash |
 | M / Tab | Map (−70 points, clock runs 4× faster) |
@@ -46,6 +49,8 @@ open to tuning. The main ones:
 - The map drains the clock 4× faster (footage shows "several times").
 - Your own traps show a small marker in your view only.
 - Escape bonus: 500 points plus 5 per second left.
+- 50 points to a trap's owner when the rival sets it off (the manual awards points but doesn't say how many).
+- The laugh lasts 2.2 s; bread crumbs are switched off on level 3.
 - All computer opponent behaviour.
 
 ## Running it locally
@@ -55,7 +60,7 @@ Opening `index.html` straight from disk won't work because browsers block ES mod
 
 Tests:
 
-- `npm test` plays 30 computer-vs-computer games headless and fails on crashes or games that never end.
+- `npm test` runs rule checks, then plays 30 computer-vs-computer games headless and fails on crashes or games that never end.
 - `npm run test:browser` (needs `npm i -D playwright` and the server running) loads the game in
   Chromium on desktop and phone sizes, plays two full games with `?autoplay&speed=8`, and fails on console errors.
 

@@ -5,7 +5,7 @@
   "description": "Browser tribute to the 1984 C64 game Spy vs Spy, with original art and sound",
   "scripts": {
     "serve": "npx http-server -p 8123 -c-1 .",
-    "test": "node tests/sim-test.mjs",
+    "test": "node tests/rules-test.mjs && node tests/sim-test.mjs",
     "test:browser": "node tests/browser-test.mjs && node tests/full-game-test.mjs"
   }
 }

@@ -51,6 +51,14 @@ export const TUNING = {
     respawnInvuln: 1.2, // [ours]
   },
 
+  // When your trap catches the rival, your spy stops and laughs, wherever they are [Steven's memory of the original].
+  // How long it lasts is [ours]; the clock keeps running meanwhile.
+  laughTime: 2.2,
+
+  // Arrows under the room pointing the way back, up to 9 rooms [manual]. The manual says they're off on
+  // higher levels without saying which; we switch them off from this level index on [ours].
+  crumbs: { max: 9, offFromLevel: 2 },
+
   guard: { stun: 0.7, knock: 0.25 }, // airport guard's boot [ours]
 
   // Points [manual], except the escape bonus which is ours (the manual's end formula isn't given).
@@ -62,6 +70,7 @@ export const TUNING = {
     loseFight: -20,
     openMap: -70,
     trapped: -80,
+    trapSprung: 50, // to the trap's owner when the rival sets it off [manual says points are awarded; the amount is ours]
     escapeBonus: 500, // [ours]
     perSecondLeft: 5, // [ours]
   },

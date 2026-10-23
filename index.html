@@ -49,14 +49,14 @@
   #stickzone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; }
   #stickzone::after { content: "drag to move"; position: absolute; left: 16px; bottom: 16px; color: rgba(255,255,255,0.35); font-size: 12px; }
   #nub { position: fixed; width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4); transform: translate(-50%, -50%); display: none; pointer-events: none; }
-  #pad { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 64px); gap: 10px; pointer-events: auto; }
+  #pad { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(4, 64px); grid-template-rows: repeat(2, 64px); gap: 10px; pointer-events: auto; }
   #pad button { font: 600 12px system-ui; color: #fff; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(40,48,62,0.75); touch-action: none; }
   #pad button.down { background: rgba(255,224,102,0.8); color: #000; }
   #pad .act { background: rgba(216,71,63,0.8); }
   #turn { position: absolute; left: 0; right: 0; top: 8px; text-align: center; color: rgba(255,255,255,0.5); font-size: 13px; display: none; }
   @media (orientation: portrait) { #turn { display: block; } }
   @media (orientation: landscape) and (max-height: 500px) {
-    #pad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(2, 52px); gap: 8px; }
+    #pad { grid-template-columns: repeat(4, 52px); grid-template-rows: repeat(2, 52px); gap: 8px; }
     #pad .act { border-radius: 26px !important; }
   }
   /* Music and pause buttons for touch screens; keyboard players use N and Esc. */
@@ -80,9 +80,10 @@
   <div id="pad">
     <button data-btn="cycle">Trap</button>
     <button data-btn="map">Map</button>
+    <button data-btn="hide">Hide</button>
     <button data-btn="heavy">Smash</button>
     <button data-btn="jab">Jab</button>
-    <button data-btn="act" class="act" style="grid-column: span 2; border-radius: 32px;">Search / Use</button>
+    <button data-btn="act" class="act" style="grid-column: span 3; border-radius: 32px;">Search / Use</button>
   </div>
 </div>
 
@@ -107,6 +108,7 @@
       <li>Pick a trap, then set it on furniture (bomb, spring) or in a doorway (bucket, gun). The time bomb goes off 15 s after you drop it. Your own traps catch you too.</li>
       <li>Remedies hang in the embassy: the fire box (water), tool box (cutters), coat rack (umbrella) and first aid kit (scissors). Carry the right one and a trap is defused.</li>
       <li>Meet your rival and it's a club fight: no searching or traps. A knockout hides the loser's items in that room.</li>
+      <li>Arrows under your room point the way back through the last 9 rooms (Levels 1 and 2).</li>
       <li>Getting caught costs 27 s of your clock. Run out of time and the plane leaves without you.</li>
     </ul>
 
@@ -115,11 +117,12 @@
       <tr><td>WASD / arrows</td><td>Move (up walks toward the back wall; walk into a doorway to go through)</td></tr>
       <tr><td>Space / E</td><td>Search furniture, or set the trap you're holding</td></tr>
       <tr><td>1 – 5 / Q</td><td>Pick a trap (press again to put it away) · Q cycles</td></tr>
+      <tr><td>H</td><td>Hide your briefcase or item in the furniture you're next to</td></tr>
       <tr><td>J / Z</td><td>Quick jab</td></tr>
       <tr><td>K / X</td><td>Heavy smash (slow wind-up, double damage)</td></tr>
       <tr><td>M / Tab</td><td>Map (−70 points, clock runs 4× faster)</td></tr>
       <tr><td>N · Esc</td><td>Music on/off · Pause</td></tr>
-      <tr><td>Gamepad</td><td>Stick/D-pad move · A use · X jab · Y smash · LB/RB traps · Back map</td></tr>
+      <tr><td>Gamepad</td><td>Stick/D-pad move · A use · B hide · X jab · Y smash · LB/RB traps · Back map</td></tr>
     </table>
     <p class="fine">Original art, sound and characters. A non-commercial fan tribute to First Star Software's 1984 Commodore 64 game. Working title.</p>
   </div>

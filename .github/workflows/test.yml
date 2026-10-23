@@ -11,5 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Rule checks
+        run: node tests/rules-test.mjs
       - name: Computer-vs-computer games run to the end without crashing
         run: node tests/sim-test.mjs 60

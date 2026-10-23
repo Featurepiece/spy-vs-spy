@@ -184,6 +184,7 @@ export class Renderer {
       ctx.fillRect(-10, -10, VIEW_W + 20, HALF + 20);
       v.fade -= dt;
     }
+    if (!spy.mapOpen && state.level < TUNING.crumbs.offFromLevel) this.drawCrumbs(spy);
     if (!spy.mapOpen) this.drawBanner(state, spy, viewer, opts);
     if (v.msgT > 0) {
       v.msgT -= dt;
@@ -193,6 +194,20 @@ export class Renderer {
     }
     ctx.restore();
     this.drawPanel(state, spy, viewer, opts);
+  }
+
+  // Bread crumbs: read right to left, each arrow is the door to take to go back one room.
+  drawCrumbs(spy) {
+    if (!spy.trail.length) return;
+    const ctx = this.ctx;
+    const glyph = { n: '↑', s: '↓', w: '←', e: '→' };
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    spy.trail.forEach((side, i) => {
+      const newest = i === spy.trail.length - 1;
+      ctx.fillStyle = newest ? '#ffe066' : 'rgba(255,255,255,0.55)';
+      ctx.fillText(glyph[side], 40 + i * 18, FRONT_Y + 7);
+    });
   }
 
   drawBanner(state, spy, viewer, opts) {
@@ -285,6 +300,7 @@ export class Renderer {
       if (focus.type === 'furniture') {
         const f = state.embassy.furniture[focus.id];
         text = spy.armed ? `${opts.actKey}: set ${TRAP_BY_ID[spy.armed].name.toLowerCase()}` : `${opts.actKey}: search`;
+        if (!spy.armed && !f.fixture && (spy.hasCase || spy.items.length)) text += ` · ${opts.hideKey}: hide ${spy.hasCase ? 'briefcase' : spy.items[0]}`;
         [px, py] = f.wall === 'back' ? [fx(f.x, 0), BACK_Y - 108] : wallPt(f.wall === 'left' ? 'w' : 'e', f.z, 92);
         if (f.wall !== 'back') px += f.wall === 'left' ? 60 : -60;
       } else if (focus.type === 'door') {
@@ -407,8 +423,27 @@ export class Renderer {
     if (s.invuln > 0 && Math.floor(this.time * 16) % 2) ctx.globalAlpha = 0.4;
     const pose = poseOf(s);
     const flash = s.stun > TUNING.combat.hitstun - 0.08 && s.stun > 0;
-    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash });
+    if (s.armed === 'gun') {
+      // The gun's string trails behind the spy until the trap is set [manual]
+      ctx.strokeStyle = '#e6d7b0'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + s.face * 8 * k, y - 38 * k);
+      const wob = Math.sin(this.time * 6) * 4 * k;
+      ctx.quadraticCurveTo(x - s.face * 10 * k, y - 10 * k + wob, x - s.face * 34 * k, y - 1);
+      ctx.lineTo(x - s.face * 60 * k, y + 1);
+      ctx.stroke();
+    }
+    const laugh = s.laughT > 0 && !s.action;
+    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh });
     ctx.globalAlpha = 1;
+    if (laugh) {
+      // "HA HA" bubbling up beside the head, fading out at the end
+      ctx.globalAlpha = Math.min(1, s.laughT * 2);
+      const jig = Math.sin(this.time * 30) * 1.5;
+      this.label('HA', x + s.face * 24 * k, y - 84 * k + jig, Math.round(13 * k), col.band, null, 'bold');
+      this.label('HA!', x + s.face * 40 * k, y - 98 * k - jig, Math.round(15 * k), col.band, null, 'bold');
+      ctx.globalAlpha = 1;
+    }
     // Health pips above the head during a fight
     if (inCombat(state, s)) {
       for (let i = 0; i < TUNING.combat.maxHp; i++) {
@@ -639,7 +674,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 function poseOf(s) {
   if (s.action) {
-    if (s.action.kind === 'search' || s.action.kind === 'set') return 'search';
+    if (s.action.kind === 'search' || s.action.kind === 'set' || s.action.kind === 'hide') return 'search';
     const mv = TUNING.combat[s.action.kind];
     const t = s.action.t;
     if (t < mv.startup) return s.action.kind === 'heavy' ? 'windup' : 'jabback';
@@ -661,6 +696,9 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
   const crouch = pose === 'search' ? 6 * k : 0;
   const bob = pose === 'walk' ? Math.abs(Math.sin(o.walk)) * 2 * k : 0;
   const by = y - crouch - bob;
+  // Laughing: shoulders and head jerk up and down
+  const lift = o.laugh ? Math.abs(Math.sin(o.t * 17)) * 3.5 * k : 0;
+  const uy = by - lift; // upper body
 
   if (!angel) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -677,8 +715,8 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
   // Coat
   ctx.fillStyle = coat;
   ctx.beginPath();
-  ctx.moveTo(x - 11 * k, by - 54 * k);
-  ctx.lineTo(x + 11 * k, by - 54 * k);
+  ctx.moveTo(x - 11 * k - lift * 0.4, uy - 54 * k);
+  ctx.lineTo(x + 11 * k + lift * 0.4, uy - 54 * k);
   ctx.lineTo(x + 16 * k, by - 18 * k);
   ctx.lineTo(x - 16 * k, by - 18 * k);
   ctx.closePath(); ctx.fill();
@@ -688,10 +726,10 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
   ctx.fillRect(x - 2 * k, by - 36 * k, 4 * k, 4 * k); // buckle
   // Lapel line
   ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * k;
-  ctx.beginPath(); ctx.moveTo(x, by - 54 * k); ctx.lineTo(x + face * 4 * k, by - 40 * k); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, uy - 54 * k); ctx.lineTo(x + face * 4 * k, by - 40 * k); ctx.stroke();
 
   // Arm and club
-  const sh = [x + face * 6 * k, by - 50 * k];
+  const sh = [x + face * 6 * k, uy - 50 * k];
   let ang; // club angle, 0 = pointing forward
   switch (pose) {
     case 'windup': ang = -2.2; break;
@@ -701,7 +739,9 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
     case 'recover': ang = 0.8; break;
     case 'search': ang = 0.6 + Math.sin(o.t * 20) * 0.3; break;
     case 'angel': ang = 1.2; break;
-    default: ang = 1.25 + (pose === 'walk' ? Math.sin(o.walk) * 0.15 : 0);
+    default:
+      if (o.laugh) { ang = 0.9; break; } // hand on the belly
+ ang = 1.25 + (pose === 'walk' ? Math.sin(o.walk) * 0.15 : 0);
   }
   const reach = pose === 'jab' ? 18 * k : pose === 'smash' ? 14 * k : 12 * k;
   const hand = [sh[0] + face * Math.cos(ang) * reach, sh[1] + Math.sin(ang) * reach];
@@ -727,7 +767,7 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
   ctx.lineCap = 'butt';
 
   // Head
-  const hy = by - 63 * k;
+  const hy = uy - 63 * k - lift * 0.5;
   ctx.fillStyle = skin;
   ctx.beginPath(); ctx.arc(x, hy, 10 * k, 0, Math.PI * 2); ctx.fill();
   // Glasses
@@ -736,6 +776,11 @@ function drawSpyFigure(ctx, x, y, k, face, o) {
   // Nose
   ctx.fillStyle = skin;
   ctx.beginPath(); ctx.arc(x + face * 10 * k, hy + 2 * k, 2.5 * k, 0, Math.PI * 2); ctx.fill();
+  if (o.laugh) {
+    // Wide open grin
+    ctx.fillStyle = '#5a1a14';
+    ctx.beginPath(); ctx.ellipse(x + face * 4 * k, hy + 5 * k, 5 * k, 3 * k + lift * 0.4, 0, 0, Math.PI); ctx.fill();
+  }
   // Hat
   ctx.fillStyle = dark;
   ctx.beginPath(); ctx.ellipse(x, hy - 7 * k, 16 * k, 3.5 * k, 0, 0, Math.PI * 2); ctx.fill();

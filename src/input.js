@@ -14,6 +14,7 @@ const KEYS = {
   heavy: ['KeyK', 'KeyX'],
   map: ['KeyM', 'Tab'],
   cycle: ['KeyQ'],
+  hide: ['KeyH'],
 };
 const TRAP_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'];
 const DEADZONE = 0.25;
@@ -21,7 +22,7 @@ const DEADZONE = 0.25;
 export class LocalInput {
   constructor() {
     this.held = new Set();
-    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0 };
+    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0, hide: false };
     this.touchVec = [0, 0];
     this.padPrev = [];
     this.enabled = true;
@@ -43,6 +44,7 @@ export class LocalInput {
         if (KEYS.heavy.includes(code)) this.edges.heavy = true;
         if (KEYS.map.includes(code)) this.edges.map = true;
         if (KEYS.cycle.includes(code)) this.edges.cycle = 1;
+        if (KEYS.hide.includes(code)) this.edges.hide = true;
         const t = TRAP_KEYS.indexOf(code);
         if (t >= 0) this.edges.trap = t + 1;
       }
@@ -67,7 +69,8 @@ export class LocalInput {
     const edge = (i) => b[i] && !this.padPrev[i];
     if (edge(0)) this.edges.act = true;
     if (edge(2)) this.edges.jab = true;
-    if (edge(3) || edge(1)) this.edges.heavy = true;
+    if (edge(3)) this.edges.heavy = true;
+    if (edge(1)) this.edges.hide = true;
     if (edge(8)) this.edges.map = true;
     if (edge(5)) this.edges.cycle = 1;
     if (edge(4)) this.edges.cycle = -1;
@@ -89,13 +92,13 @@ export class LocalInput {
     if (!mx && !mz) { mx = px || this.touchVec[0]; mz = pz || this.touchVec[1]; }
     let trap = this.edges.trap;
     if (!trap && this.edges.cycle) trap = cycleTrap(state.spies[spyIdx], this.edges.cycle);
-    const f = { mx, mz, act: this.edges.act, jab: this.edges.jab, heavy: this.edges.heavy, trap, map: this.edges.map };
-    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0 };
+    const f = { mx, mz, act: this.edges.act, jab: this.edges.jab, heavy: this.edges.heavy, trap, map: this.edges.map, hide: this.edges.hide };
+    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0, hide: false };
     return f;
   }
 
   clear() {
-    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0 };
+    this.edges = { act: false, jab: false, heavy: false, map: false, cycle: 0, trap: 0, hide: false };
   }
 }
 
