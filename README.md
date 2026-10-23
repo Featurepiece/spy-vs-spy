@@ -1,16 +1,70 @@
-# Spy vs Spy (browser tribute)
+# Double Agents (working title)
 
 A browser game in the spirit of the classic 1984 Commodore 64 game *Spy vs Spy*.
 Two rival spies search an embassy for hidden items, set traps for each other, and race to escape first.
 
-All art, sound and characters in this project are original. No assets from the original game are used.
-This is a non-commercial fan project.
+All art, sound and characters in this project are original and drawn or synthesised in code.
+No assets from the original game are used. This is a non-commercial fan project.
 
-## Planned modes
+**Play:** https://featurepiece.github.io/spy-vs-spy/ (once GitHub Pages is switched on, see below)
 
-- Player vs CPU
-- Online player vs player, through a small real-time server
+## What's in this first version
 
-## Status
+- Player vs computer, split screen: you (Scarlet) on top, the computer (Cobalt) below.
+  On phones only your own half is shown, with touch controls.
+- Random embassies of 6, 13 or 20 rooms with 7, 12 or 15 minutes on the clock.
+- Four items plus the briefcase. Without the briefcase you can carry only one thing.
+- Five traps (bomb, spring, bucket on a door, gun on a door, time bomb), four remedies in wall fixtures.
+- Club fights when you meet: quick jab or slow heavy smash. A knockout hides the loser's items in that room.
+- The gadget panel: clock, strength, trap buttons, map, items and remedy.
+- Three computer skill levels.
+- Keyboard, gamepad and touch.
 
-Nothing playable yet. Design research lives outside the repo for now.
+## Controls
+
+| Key | Action |
+| --- | --- |
+| WASD / arrows | Move. Walk into a doorway to go through |
+| Space / E | Search furniture, or set the trap you're holding |
+| 1–5, Q | Pick a trap (again to put it away), Q cycles |
+| J / Z | Jab |
+| K / X | Heavy smash |
+| M / Tab | Map (−70 points, clock runs 4× faster) |
+| N, Esc | Music, pause |
+
+## Which rules come from the original, and which are ours
+
+Facts from the original come from the First Star manual text and C64 footage (see the Embassy
+Dossier research page). Everything tagged `[ours]` in `src/tuning.js` is our own choice and
+open to tuning. The main ones:
+
+- Setting a trap costs 3 seconds of clock (the original's cost is unknown).
+- Trap counts: 2, 3 or 4 of each type per spy by level (the C64 gives a total, not a split).
+- A remedy is used up when it saves you.
+- Both spies start in the same room (as in the original), with a truce until one leaves.
+- Losing a fight costs the same 7 s + 20 s as a trap (the manual says it costs time, not how much).
+- The map drains the clock 4× faster (footage shows "several times").
+- Your own traps show a small marker in your view only.
+- Escape bonus: 500 points plus 5 per second left.
+- All computer opponent behaviour.
+
+## Running it locally
+
+Any static file server works, for example `npm run serve`, then open http://localhost:8123.
+Opening `index.html` straight from disk won't work because browsers block ES modules on `file://`.
+
+Tests:
+
+- `npm test` plays 30 computer-vs-computer games headless and fails on crashes or games that never end.
+- `npm run test:browser` (needs `npm i -D playwright` and the server running) loads the game in
+  Chromium on desktop and phone sizes, plays two full games with `?autoplay&speed=8`, and fails on console errors.
+
+## Switching on GitHub Pages
+
+Settings → Pages → Build and deployment → Source: **Deploy from a branch**, Branch: **main**, folder **/ (root)**.
+The game appears at https://featurepiece.github.io/spy-vs-spy/ a minute or two later.
+
+## Planned
+
+- Online player vs player between two computers, through a small real-time server.
+  The game rules already run separately from the screen so a server can run them; see `docs/ARCHITECTURE.md`.
