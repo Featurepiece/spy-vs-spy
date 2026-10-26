@@ -4,9 +4,10 @@
 import { TUNING } from './tuning.js';
 import { createGame, step, DT } from './sim.js';
 import { CpuBrain } from './ai.js';
-import { Renderer, W, HALF } from './render.js';
+import { Renderer, CANVAS_W, SLOT_H } from './render.js';
 import { Audio } from './audio.js';
 import { LocalInput, setupTouch } from './input.js';
+import { setupTitle } from './title.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -52,10 +53,10 @@ function layout() {
   const vw = window.innerWidth - 16, vh = window.innerHeight - 16;
   const portrait = vh > vw;
   const reserve = touchOn ? (portrait ? Math.min(260, vh * 0.42) : 118) : 0;
-  const h = HALF * viewOpts.views.length;
-  const w = Math.min(vw, ((vh - reserve) * W) / h);
+  const h = SLOT_H * viewOpts.views.length;
+  const w = Math.min(vw, ((vh - reserve) * CANVAS_W) / h);
   canvas.style.width = `${Math.floor(w)}px`;
-  canvas.style.height = `${Math.floor((w * h) / W)}px`;
+  canvas.style.height = `${Math.floor((w * h) / CANVAS_W)}px`;
   $('wrap').style.justifyContent = reserve ? 'flex-start' : 'center';
   renderer.resize();
 }
@@ -63,22 +64,33 @@ window.addEventListener('resize', layout);
 
 // ---------- menus ----------
 
-function buildSeg(el, options, key) {
-  el.innerHTML = '';
-  options.forEach((o, i) => {
-    const b = document.createElement('button');
-    b.innerHTML = `${o.label}<small>${o.sub}</small>`;
-    b.setAttribute('aria-pressed', String(settings[key] === i));
-    b.onclick = () => {
-      settings[key] = i;
-      store.set(`da.${key}`, i);
-      [...el.children].forEach((c, j) => c.setAttribute('aria-pressed', String(j === i)));
-    };
-    el.appendChild(b);
-  });
+const title = setupTitle({
+  settings,
+  save: (key, v) => store.set(`da.${key}`, v),
+  onStart: () => startGame(),
+  isTouch,
+});
+
+// Attract mode: behind the front menu the monitors show two computer spies playing.
+const demoOpts = { ...viewOpts, hints: [false, false], keyLabels: [false, false], labels: [null, null], showOwnTraps: [false, false] };
+let demo = null;
+function newDemo() {
+  const seed = (Math.random() * 2 ** 31) | 0;
+  demo = { state: createGame({ level: 0, cpuIq: 1, seed }), brains: [new CpuBrain(0, 1, seed ^ 0x2468ace), new CpuBrain(1, 1, seed ^ 0x13579b)], acc: 0 };
+  renderer.fx = [];
 }
-buildSeg($('levelSeg'), TUNING.levels.map((l) => ({ label: l.name, sub: `${l.rooms} rooms · ${l.minutes} min` })), 'level');
-buildSeg($('iqSeg'), TUNING.cpu.map((c, i) => ({ label: c.name, sub: ['sets few traps', 'a fair fight', 'sneaky and fierce'][i] })), 'iq');
+function runDemo(dt) {
+  if (!demo || demo.state.over) newDemo();
+  demo.acc += dt;
+  while (demo.acc >= DT) {
+    demo.acc -= DT;
+    const st = demo.state;
+    step(st, [demo.brains[0].think(st), demo.brains[1].think(st)]);
+    demo.brains.forEach((b) => b.observe(st, st.events));
+    renderer.handleEvents(st, st.events);
+  }
+  renderer.draw(demo.state, dt, demoOpts);
+}
 
 function show(id) {
   for (const o of ['title', 'paused']) $(o).hidden = o !== id;
@@ -109,8 +121,11 @@ function pause(on) {
 }
 
 function toMenu() {
+  titleMusic.currentTime = 0;
   screen = 'title';
   audio.stopMusic();
+  title.reset();
+  newDemo();
   show('title');
   layout();
 }
@@ -128,7 +143,6 @@ function endingSkip() {
   if (screen === 'ending' && endT > TUNING.ending.continueAt) toMenu();
 }
 
-$('startBtn').onclick = startGame;
 $('resumeBtn').onclick = () => pause(false);
 $('quitBtn').onclick = toMenu;
 $('pauseBtn').onclick = () => (screen === 'play' ? pause(true) : pause(false));
@@ -155,15 +169,32 @@ window.addEventListener('keydown', (e) => {
     if (audio.musicOn && screen === 'play') audio.startMusic();
     musicLabel();
   }
-  if (e.code === 'Enter' && screen === 'title') {
-    e.preventDefault();
-    startGame();
+  if (screen === 'title') {
+    title.onKey(e.code);
+    return;
   }
 });
 window.addEventListener('pointerdown', () => { audio.unlock(); endingSkip(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
 
 setupTouch(input, $('stickzone'), $('nub'), [...document.querySelectorAll('#pad button')]);
+
+// ---------- title music ----------
+
+// Steven's theme (made with Suno) plays on the front menu only. Browsers won't
+// start sound before the first key press or tap, so it waits for one.
+const titleMusic = document.createElement('audio');
+titleMusic.src = 'assets/music/title-theme.mp3';
+titleMusic.loop = true;
+titleMusic.volume = 0.5;
+titleMusic.preload = 'auto';
+let interacted = false;
+function updateTitleMusic() {
+  const want = interacted && screen === 'title' && audio.musicOn;
+  if (want && titleMusic.paused) titleMusic.play().catch(() => { interacted = false; });
+  else if (!want && !titleMusic.paused) titleMusic.pause();
+}
+for (const ev of ['keydown', 'pointerdown']) window.addEventListener(ev, () => { interacted = true; });
 
 // ---------- loop ----------
 
@@ -189,12 +220,14 @@ function frame(now) {
     endT += dt;
     if (endT > TUNING.ending.autoReturn) toMenu();
   }
-  if (state && screen === 'ending') {
+  if (screen === 'title') runDemo(dt);
+  else if (state && screen === 'ending') {
     // On phones only one half is shown, so show the winner's airfield.
     const views = viewOpts.views.length === 1 ? [state.winner ?? 0] : viewOpts.views;
     renderer.draw(state, dt, { ...viewOpts, views, ending: { t: endT } });
   } else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
-  window.__game = { state, screen }; // handy for tests and debugging
+  updateTitleMusic();
+  window.__game = { state, screen, titleMusic: !titleMusic.paused }; // handy for tests and debugging
   requestAnimationFrame(frame);
 }
 

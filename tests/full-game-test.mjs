@@ -14,7 +14,7 @@ for (const level of [0, 1]) {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${base}?autoplay&speed=8`);
-  await page.click(`#levelSeg button:nth-child(${level + 1})`);
+  for (let i = 0; i < level; i++) await page.click('[data-set="level"] .arrow[data-d="1"]'); // each page starts at Level 1
   await page.click('#startBtn');
   let shots = 0;
   for (let i = 0; i < 240; i++) {

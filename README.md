@@ -3,15 +3,22 @@
 A browser game in the spirit of the classic 1984 Commodore 64 game *Spy vs Spy*.
 Two rival spies search an embassy for hidden items, set traps for each other, and race to escape first.
 
-All art, sound and characters in this project are original and drawn or synthesised in code.
-No assets from the original game are used. This is a non-commercial fan project.
+All art, sound and characters in this project are original. The game itself is drawn and
+synthesised in code; the front menu's title picture, logo and theme music were made for this
+project by Steven with Gemini and Suno. No assets from the original game are used. This is a
+non-commercial fan project.
+The two fonts in `assets/fonts/` are free fonts from Google Fonts, with their licences alongside
+(Black Ops One: SIL Open Font License; Special Elite: Apache 2.0).
 
 **Play:** https://featurepiece.github.io/spy-vs-spy/ (once GitHub Pages is switched on, see below)
 
 ## What's in this first version
 
 - Player vs computer, split screen: you (Scarlet) on top, the computer (Cobalt) below.
-  On phones only your own half is shown, with touch controls.
+  Each half is a security monitor, as if you're watching the spies on camera; the
+  picture drops to static when a spy changes room. On phones only your own half is shown, with touch controls.
+- A front menu (arrow keys, Enter, or tap) with the two computer spies playing on the monitors behind it.
+  Its title pictures are placeholders until real art arrives: see `docs/ART-SPECS.md`.
 - Random embassies of 6, 13 or 20 rooms with 7, 12 or 15 minutes on the clock.
 - Four items plus the briefcase. Without the briefcase you can carry only one thing.
 - Five traps (bomb, spring, bucket on a door, gun on a door, time bomb), four remedies in wall fixtures.

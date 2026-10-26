@@ -9,10 +9,12 @@ No build step and no libraries: plain ES modules that run straight from GitHub P
 | `src/embassy.js` | Random embassy: rooms on a grid, doors, furniture, fixtures, hidden items, exit |
 | `src/sim.js` | The game rules. Pure: no screen, keyboard or sound |
 | `src/ai.js` | The computer spy. Produces the same input frames a player does |
-| `src/render.js` | Canvas drawing: rooms, spies, effects, gadget panel, map |
+| `src/render.js` | Canvas drawing: security monitors, rooms, spies, effects, gadget panel, map |
 | `src/audio.js` | WebAudio sound effects and music, all synthesised |
 | `src/input.js` | Keyboard, gamepad and touch to input frames |
-| `src/main.js` | Menus and the fixed-step loop |
+| `src/title.js` | The front menu and its placeholder title art |
+| `src/art.js` | Which optional picture files exist (see `docs/ART-SPECS.md`) |
+| `src/main.js` | Menus, the attract-mode demo behind the menu, and the fixed-step loop |
 
 ## The simulation contract
 
