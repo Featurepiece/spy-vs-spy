@@ -41,9 +41,6 @@
   .how li { margin: 3px 0; }
   .fine { font-size: 12px; color: var(--muted); margin-top: 18px; }
   .result { font-size: 28px; font-weight: 800; margin: 0 0 6px; }
-  .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-  .scores div { background: #10141b; border-radius: 8px; padding: 12px; }
-  .scores b { display: block; font-size: 24px; }
   #touch { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; max-height: 260px; display: none; pointer-events: none; z-index: 5; }
   #touch.on { display: block; }
   #stickzone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; }
@@ -134,18 +131,6 @@
     <div class="actions" style="justify-content:center">
       <button class="go" id="resumeBtn">Resume</button>
       <button id="quitBtn">Quit to menu</button>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="over" hidden>
-  <div class="card" style="max-width:480px">
-    <p class="result" id="overTitle"></p>
-    <p class="tag" id="overSub"></p>
-    <div class="scores" id="overScores"></div>
-    <div class="actions">
-      <button class="go" id="againBtn">Play again</button>
-      <button id="menuBtn">Menu</button>
     </div>
   </div>
 </div>

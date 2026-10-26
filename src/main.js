@@ -27,7 +27,7 @@ let playerBrain = null;
 
 let settings = { level: store.get('da.level', 0), iq: store.get('da.iq', 1) };
 let screen = 'title';
-let state = null, brain = null, acc = 0, last = performance.now(), overAt = 0;
+let state = null, brain = null, acc = 0, last = performance.now(), overAt = 0, endT = 0;
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 document.body.classList.toggle('touch', isTouch);
 
@@ -42,6 +42,7 @@ const viewOpts = {
   actKey: isTouch ? 'Use' : 'Space',
   fightKeys: isTouch ? 'Jab / Smash' : 'J / K',
   hideKey: isTouch ? 'Hide' : 'H',
+  continueText: isTouch ? 'Tap to return to the menu' : 'Press Enter to return to the menu',
   showOwnTraps: [true, false], // the computer's trap reminders stay hidden from you
 };
 
@@ -80,7 +81,7 @@ buildSeg($('levelSeg'), TUNING.levels.map((l) => ({ label: l.name, sub: `${l.roo
 buildSeg($('iqSeg'), TUNING.cpu.map((c, i) => ({ label: c.name, sub: ['sets few traps', 'a fair fight', 'sneaky and fierce'][i] })), 'iq');
 
 function show(id) {
-  for (const o of ['title', 'paused', 'over']) $(o).hidden = o !== id;
+  for (const o of ['title', 'paused']) $(o).hidden = o !== id;
 }
 
 function startGame() {
@@ -114,29 +115,20 @@ function toMenu() {
   layout();
 }
 
-const RANKS = [
-  [4000, 'Legend of the Trenchcoat'],
-  [2500, 'Master of Disguise'],
-  [1200, 'Field Agent'],
-  [300, 'Junior Snoop'],
-  [-Infinity, 'Desk Clerk'],
-];
-const rank = (pts) => RANKS.find(([min]) => pts >= min)[1];
-
-function showGameOver() {
-  screen = 'over';
+// The ending: the winner's half becomes an airfield and they fly off, then back to the menu.
+function startEnding() {
+  screen = 'ending';
+  endT = 0;
   audio.stopMusic();
-  const [me, cpu] = state.spies;
-  $('overTitle').textContent = state.winner === 0 ? 'You escaped!' : state.winner === 1 ? 'Cobalt got away!' : 'Both planes left without you';
-  $('overTitle').style.color = state.winner === 0 ? 'var(--gold)' : 'var(--ink)';
-  $('overSub').textContent = state.winner === 0 ? `Rank: ${rank(me.score)}` : state.winner === 1 ? 'Better luck next mission.' : 'Nobody made it out in time.';
-  $('overScores').innerHTML = [me, cpu].map((s, i) => `<div><span style="color:${i ? 'var(--blue)' : 'var(--red)'}">${s.name}</span><b>${s.score}</b>${s.items.length}/4 items · caught ${s.deaths}×</div>`).join('');
-  show('over');
+  audio.ending(state.winner === null ? null : state.winner === 0, TUNING.ending);
+  layout();
+}
+
+function endingSkip() {
+  if (screen === 'ending' && endT > TUNING.ending.continueAt) toMenu();
 }
 
 $('startBtn').onclick = startGame;
-$('againBtn').onclick = startGame;
-$('menuBtn').onclick = toMenu;
 $('resumeBtn').onclick = () => pause(false);
 $('quitBtn').onclick = toMenu;
 $('pauseBtn').onclick = () => (screen === 'play' ? pause(true) : pause(false));
@@ -150,6 +142,10 @@ $('musicBtn').onclick = () => {
 
 window.addEventListener('keydown', (e) => {
   audio.unlock();
+  if (screen === 'ending') {
+    if (['Enter', 'Space', 'Escape'].includes(e.code)) { e.preventDefault(); endingSkip(); }
+    return;
+  }
   if (e.code === 'Escape' || e.code === 'KeyP') {
     if (screen === 'play') pause(true);
     else if (screen === 'paused') pause(false);
@@ -159,12 +155,12 @@ window.addEventListener('keydown', (e) => {
     if (audio.musicOn && screen === 'play') audio.startMusic();
     musicLabel();
   }
-  if (e.code === 'Enter' && (screen === 'title' || screen === 'over')) {
+  if (e.code === 'Enter' && screen === 'title') {
     e.preventDefault();
     startGame();
   }
 });
-window.addEventListener('pointerdown', () => audio.unlock());
+window.addEventListener('pointerdown', () => { audio.unlock(); endingSkip(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
 
 setupTouch(input, $('stickzone'), $('nub'), [...document.querySelectorAll('#pad button')]);
@@ -185,11 +181,19 @@ function frame(now) {
       if (playerBrain) playerBrain.observe(state, state.events);
       renderer.handleEvents(state, state.events);
       for (const e of state.events) audio.play(e, state, 0);
-      if (state.over && !overAt) overAt = now + 1600;
+      if (state.over && !overAt) overAt = now + TUNING.ending.delay * 1000;
     }
-    if (overAt && now >= overAt) showGameOver();
+    if (overAt && now >= overAt) startEnding();
   }
-  if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
+  if (screen === 'ending') {
+    endT += dt;
+    if (endT > TUNING.ending.autoReturn) toMenu();
+  }
+  if (state && screen === 'ending') {
+    // On phones only one half is shown, so show the winner's airfield.
+    const views = viewOpts.views.length === 1 ? [state.winner ?? 0] : viewOpts.views;
+    renderer.draw(state, dt, { ...viewOpts, views, ending: { t: endT } });
+  } else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
   window.__game = { state, screen }; // handy for tests and debugging
   requestAnimationFrame(frame);
 }

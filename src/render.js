@@ -156,6 +156,10 @@ export class Renderer {
   }
 
   drawHalf(state, viewer, dt, opts) {
+    if (opts.ending) {
+      this.drawEndingHalf(state, viewer, opts);
+      return;
+    }
     const ctx = this.ctx;
     const spy = state.spies[viewer];
     const v = this.views[viewer];
@@ -191,6 +195,71 @@ export class Renderer {
       ctx.globalAlpha = Math.min(1, v.msgT * 2);
       this.label(v.msg, VIEW_W / 2, HALF - 16, 15, '#fff', 'rgba(0,0,0,0.65)');
       ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    this.drawPanel(state, spy, viewer, opts);
+  }
+
+  // ---------- the ending ----------
+
+  // The winner's half becomes an airfield and they fly off; the loser's half goes blank [seen].
+  drawEndingHalf(state, viewer, opts) {
+    const ctx = this.ctx;
+    const t = opts.ending.t;
+    const spy = state.spies[viewer];
+    if (state.winner !== viewer) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, HALF);
+      if (state.winner === null) {
+        // Nobody escaped [ours]: the plane leaves without either spy.
+        this.label('OUT OF TIME', VIEW_W / 2, HALF / 2 - 14, 28, SPY_COLORS[viewer].ui, null, 'bold');
+        this.label('The plane left without you', VIEW_W / 2, HALF / 2 + 18, 14, '#c9d1dc', null);
+      }
+      if (opts.hints[viewer] && t > TUNING.ending.continueAt) this.label(opts.continueText, VIEW_W / 2, HALF - 20, 12, '#8d96a3', null);
+      return;
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, VIEW_W, HALF); ctx.clip();
+    drawAirfield(ctx, t, this.time);
+    const E = TUNING.ending;
+    const col = SPY_COLORS[viewer];
+    const ground = 268;
+    const ease = (a, b) => Math.min(1, Math.max(0, (t - a) / (b - a)));
+    // Plane: parked, then taxis right, then climbs away.
+    const taxi = ease(...E.taxi), lift = ease(...E.takeoff);
+    let px = 360 + taxi * taxi * 120, py = ground, ang = 0, ps = 1.7;
+    if (lift > 0) {
+      px = 480 + lift * 300;
+      py = ground - lift * lift * 260;
+      ang = -0.3 * Math.min(1, lift * 3);
+      ps = 1.7 * (1 - lift * 0.6);
+    }
+    const engineOn = t > E.board[1] + 0.2;
+    const boarded = t >= E.board[1];
+    drawPlane(ctx, px, py, ps, ang, col, engineOn ? this.time : null, boarded);
+    if (lift > 0.02 && lift < 0.6) {
+      ctx.fillStyle = 'rgba(220,220,220,0.35)';
+      ctx.beginPath(); ctx.ellipse(px - 110, ground - 2, 28 * (1 - lift), 6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    // The spy walks from the hangar door to the plane and climbs in.
+    if (!boarded) {
+      const w = ease(...E.walk), b = ease(...E.board);
+      const sx = 130 + w * 236, sy = ground - b * 40;
+      ctx.globalAlpha = 1 - b * 0.9;
+      drawSpyFigure(ctx, sx, sy, 0.6 * (1 - b * 0.2), 1, { pose: w > 0 && w < 1 ? 'walk' : 'idle', col, walk: t * 9, t: this.time });
+      ctx.globalAlpha = 1;
+    }
+    // Score and rank [seen: score and a jokey rank over the airfield; our wording].
+    if (t > E.rankAt) {
+      ctx.globalAlpha = Math.min(1, (t - E.rankAt) * 2);
+      this.label(spy.score.toLocaleString('en-GB'), VIEW_W / 2, 58, 40, '#ffffff', 'rgba(10,20,40,0.45)', 'bold');
+      this.label(`RANK: ${rankFor(spy.score).toUpperCase()}`, VIEW_W / 2, 102, 18, '#ffe066', 'rgba(10,20,40,0.45)', 'bold');
+      ctx.globalAlpha = 1;
+    }
+    if (opts.hints[viewer] && t > E.continueAt) this.label(opts.continueText, VIEW_W / 2, HALF - 12, 12, '#ffffff', 'rgba(0,0,0,0.45)');
+    if (t < E.fadeIn) {
+      ctx.fillStyle = `rgba(0,0,0,${1 - t / E.fadeIn})`;
+      ctx.fillRect(0, 0, VIEW_W, HALF);
     }
     ctx.restore();
     this.drawPanel(state, spy, viewer, opts);
@@ -646,6 +715,107 @@ export class Renderer {
     ctx.fillStyle = color;
     ctx.fillText(text, x, y + 1);
   }
+}
+
+export function rankFor(score) {
+  return TUNING.ranks.find(([min]) => score >= min)[1];
+}
+
+// Our own airfield: sunset sky, hills, a round-roofed hangar, a control tower and a windsock.
+function drawAirfield(ctx, t, time) {
+  const sky = ctx.createLinearGradient(0, 0, 0, 210);
+  sky.addColorStop(0, '#24406e'); sky.addColorStop(0.65, '#d98b6a'); sky.addColorStop(1, '#f3c27d');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, VIEW_W, 215);
+  ctx.fillStyle = 'rgba(255,236,170,0.9)';
+  ctx.beginPath(); ctx.arc(470, 196, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (const [cx, cy, s] of [[120, 50, 1], [420, 34, 0.8], [640, 70, 1.1]]) {
+    const dx = ((time * 6 * s) % 60) - 30;
+    ctx.beginPath(); ctx.ellipse(cx + dx, cy, 38 * s, 9 * s, 0, 0, Math.PI * 2); ctx.ellipse(cx + dx + 20 * s, cy - 6 * s, 22 * s, 8 * s, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // Hills
+  ctx.fillStyle = '#3e5f3c';
+  ctx.beginPath(); ctx.moveTo(0, 215);
+  for (let x = 0; x <= VIEW_W; x += 40) ctx.lineTo(x, 196 + Math.sin(x * 0.013) * 12 + Math.sin(x * 0.041) * 5);
+  ctx.lineTo(VIEW_W, 215); ctx.closePath(); ctx.fill();
+  // Grass and runway
+  ctx.fillStyle = '#5d8a45'; ctx.fillRect(0, 212, VIEW_W, HALF - 212);
+  ctx.fillStyle = '#6a6f74'; ctx.fillRect(0, 246, VIEW_W, 34);
+  ctx.fillStyle = '#e9e9e9';
+  for (let x = 10; x < VIEW_W; x += 60) ctx.fillRect(x, 262, 32, 3);
+  // Hangar: corrugated round roof
+  ctx.fillStyle = '#8c968e';
+  ctx.beginPath(); ctx.ellipse(130, 236, 100, 96, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 2;
+  for (let i = -4; i <= 4; i++) {
+    ctx.beginPath(); ctx.ellipse(130, 236, Math.abs(i) * 22 + 2, 96, 0, Math.PI, 0); ctx.stroke();
+  }
+  ctx.fillStyle = '#2a2f33'; ctx.fillRect(82, 168, 96, 68);
+  ctx.fillStyle = '#3c4349'; ctx.fillRect(82, 168, 96, 6);
+  // Control tower
+  ctx.fillStyle = '#d9d2c3'; ctx.fillRect(606, 128, 26, 106);
+  ctx.fillStyle = '#3b4a57'; ctx.fillRect(590, 100, 58, 30);
+  ctx.fillStyle = '#9fd3e6'; ctx.fillRect(594, 105, 50, 18);
+  ctx.fillStyle = '#c94f3d'; ctx.fillRect(586, 94, 66, 7);
+  // Windsock
+  ctx.fillStyle = '#555'; ctx.fillRect(536, 166, 3, 70);
+  const flap = Math.sin(time * 4) * 3;
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = i % 2 ? '#ffffff' : '#ff7a1a';
+    const x0 = 539 + i * 9, x1 = x0 + 9;
+    ctx.beginPath();
+    ctx.moveTo(x0, 166 + i * 1.2 + (i ? flap * i / 4 : 0)); ctx.lineTo(x1, 167 + (i + 1) * 1.2 + flap * (i + 1) / 4);
+    ctx.lineTo(x1, 178 - (i + 1) * 1.2 + flap * (i + 1) / 4); ctx.lineTo(x0, 179 - i * 1.2 + (i ? flap * i / 4 : 0));
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+// A little high-wing monoplane in the spy's colours. (x, y) is where the wheels touch the ground.
+function drawPlane(ctx, x, y, s, ang, col, spinTime, pilot) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
+  // Wheels and struts
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(8, -22); ctx.lineTo(4, -7); ctx.moveTo(-50, -18); ctx.lineTo(-54, -5); ctx.stroke();
+  ctx.fillStyle = '#1d1d1d';
+  ctx.beginPath(); ctx.arc(4, -7, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-54, -4, 4, 0, Math.PI * 2); ctx.fill();
+  // Fuselage
+  ctx.fillStyle = col.coat;
+  ctx.beginPath();
+  ctx.moveTo(40, -30); ctx.quadraticCurveTo(46, -22, 40, -14);
+  ctx.lineTo(-30, -16); ctx.lineTo(-62, -24); ctx.lineTo(-58, -33); ctx.lineTo(-20, -40); ctx.lineTo(28, -42);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = col.band; ctx.fillRect(-40, -30, 70, 4); // stripe
+  // Tail fin
+  ctx.fillStyle = col.dark;
+  ctx.beginPath(); ctx.moveTo(-50, -31); ctx.lineTo(-66, -56); ctx.lineTo(-58, -56); ctx.lineTo(-36, -36); ctx.closePath(); ctx.fill();
+  // Cockpit window and pilot
+  ctx.fillStyle = '#bfe6f5';
+  ctx.beginPath(); ctx.moveTo(4, -42); ctx.lineTo(22, -42); ctx.lineTo(30, -32); ctx.lineTo(4, -32); ctx.closePath(); ctx.fill();
+  if (pilot) {
+    ctx.fillStyle = '#f0c9a0'; ctx.beginPath(); ctx.arc(14, -36, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = col.dark; ctx.fillRect(8, -44, 12, 4); ctx.fillRect(10, -48, 8, 5);
+  }
+  // High wing and strut
+  ctx.fillStyle = col.dark;
+  roundRect(ctx, -26, -50, 62, 7, 3); ctx.fill();
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-6, -44); ctx.lineTo(-14, -22); ctx.stroke();
+  // Nose cowl and propeller
+  ctx.fillStyle = '#3a3a3a';
+  ctx.beginPath(); ctx.ellipse(42, -28, 6, 11, 0, 0, Math.PI * 2); ctx.fill();
+  if (spinTime !== null) {
+    ctx.fillStyle = 'rgba(230,230,230,0.35)';
+    ctx.beginPath(); ctx.ellipse(48, -28, 3, 22, 0, 0, Math.PI * 2); ctx.fill();
+    const a = spinTime * 60;
+    ctx.strokeStyle = 'rgba(40,40,40,0.6)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(48, -28 - Math.cos(a) * 20); ctx.lineTo(48, -28 + Math.cos(a) * 20); ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(48, -48); ctx.lineTo(48, -8); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // ---------- shape helpers ----------
