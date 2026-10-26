@@ -33,9 +33,12 @@ async function run(name, viewport, isMobile) {
     await page.keyboard.press('Escape');
     if (await page.isHidden('#menuMain')) errors.push(`${name}: Escape did not go back to the menu`);
     if ((await page.evaluate(() => window.__game.screen)) !== 'title') errors.push(`${name}: menu keys left the title screen`);
+    await page.waitForTimeout(300);
+    if (!(await page.evaluate(() => window.__game.titleMusic))) errors.push(`${name}: title music did not start after a key press`);
   }
   await page.click('#startBtn');
   await page.waitForTimeout(500);
+  if (await page.evaluate(() => window.__game.titleMusic)) errors.push(`${name}: title music kept playing in the game`);
   // Wander and search a bit.
   const hold = async (key, ms) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); };
   await hold('ArrowUp', 600);

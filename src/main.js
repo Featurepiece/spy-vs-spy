@@ -121,6 +121,7 @@ function pause(on) {
 }
 
 function toMenu() {
+  titleMusic.currentTime = 0;
   screen = 'title';
   audio.stopMusic();
   title.reset();
@@ -178,6 +179,23 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 setupTouch(input, $('stickzone'), $('nub'), [...document.querySelectorAll('#pad button')]);
 
+// ---------- title music ----------
+
+// Steven's theme (made with Suno) plays on the front menu only. Browsers won't
+// start sound before the first key press or tap, so it waits for one.
+const titleMusic = document.createElement('audio');
+titleMusic.src = 'assets/music/title-theme.mp3';
+titleMusic.loop = true;
+titleMusic.volume = 0.5;
+titleMusic.preload = 'auto';
+let interacted = false;
+function updateTitleMusic() {
+  const want = interacted && screen === 'title' && audio.musicOn;
+  if (want && titleMusic.paused) titleMusic.play().catch(() => { interacted = false; });
+  else if (!want && !titleMusic.paused) titleMusic.pause();
+}
+for (const ev of ['keydown', 'pointerdown']) window.addEventListener(ev, () => { interacted = true; });
+
 // ---------- loop ----------
 
 
@@ -208,7 +226,8 @@ function frame(now) {
     const views = viewOpts.views.length === 1 ? [state.winner ?? 0] : viewOpts.views;
     renderer.draw(state, dt, { ...viewOpts, views, ending: { t: endT } });
   } else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
-  window.__game = { state, screen }; // handy for tests and debugging
+  updateTitleMusic();
+  window.__game = { state, screen, titleMusic: !titleMusic.paused }; // handy for tests and debugging
   requestAnimationFrame(frame);
 }
 

@@ -3,8 +3,10 @@
 A browser game in the spirit of the classic 1984 Commodore 64 game *Spy vs Spy*.
 Two rival spies search an embassy for hidden items, set traps for each other, and race to escape first.
 
-All art, sound and characters in this project are original and drawn or synthesised in code.
-No assets from the original game are used. This is a non-commercial fan project.
+All art, sound and characters in this project are original. The game itself is drawn and
+synthesised in code; the front menu's title picture, logo and theme music were made for this
+project by Steven with Gemini and Suno. No assets from the original game are used. This is a
+non-commercial fan project.
 The two fonts in `assets/fonts/` are free fonts from Google Fonts, with their licences alongside
 (Black Ops One: SIL Open Font License; Special Elite: Apache 2.0).
 
