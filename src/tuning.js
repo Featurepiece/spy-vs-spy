@@ -59,6 +59,30 @@ export const TUNING = {
   // higher levels without saying which; we switch them off from this level index on [ours].
   crumbs: { max: 9, offFromLevel: 2 },
 
+  // The escape ending. The airfield scene, plane take-off, score and rank and a blank loser's half
+  // follow the C64 footage [seen]; the timings, artwork and what happens when nobody escapes are [ours].
+  ending: {
+    delay: 1.2, // seconds after the escape before the scene starts
+    fadeIn: 0.6,
+    walk: [0.6, 2.6], // spy walks from the hangar to the plane
+    board: [2.6, 3.2],
+    taxi: [3.8, 6.2],
+    takeoff: [6.2, 8.6],
+    rankAt: 8.0,
+    continueAt: 3, // earliest a key or tap skips back to the menu
+    autoReturn: 18,
+  },
+
+  // Ranks for the winner's score. The original's list and thresholds aren't known; these are [ours].
+  ranks: [
+    [4500, 'Legend of the Trenchcoat'],
+    [3500, 'Ghost of the Embassy'],
+    [2500, 'Master of Disguise'],
+    [1500, 'Field Agent'],
+    [500, 'Junior Snoop'],
+    [-Infinity, 'Tourist with a Camera'],
+  ],
+
   guard: { stun: 0.7, knock: 0.25 }, // airport guard's boot [ours]
 
   // Points [manual], except the escape bonus which is ours (the manual's end formula isn't given).

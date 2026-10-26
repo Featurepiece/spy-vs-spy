@@ -140,6 +140,18 @@ export class Audio {
     }
   }
 
+  // Sounds for the ending scene: engine starting, taxiing and climbing away, then a jingle with the rank.
+  // won: true if the listener escaped, false if the rival did, null if nobody did.
+  ending(won, E) {
+    if (!this.ctx || won === null) return;
+    const v = won ? 1 : 0.5;
+    const start = E.board[1] + 0.2;
+    this.tone(40, 0.6, { type: 'sawtooth', vol: 0.05 * v, slide: 70, delay: start });
+    this.tone(70, E.takeoff[1] - start, { type: 'sawtooth', vol: 0.06 * v, slide: 190, delay: start + 0.5 });
+    this.noise(E.takeoff[1] - start, { vol: 0.05 * v, freq: 300, type: 'lowpass', sweep: 900, delay: start + 0.5 });
+    if (won) [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.22, { vol: 0.1, delay: E.rankAt + i * 0.11, type: 'triangle' }));
+  }
+
   toggleMusic() {
     this.musicOn = !this.musicOn;
     if (this.musicGain) this.musicGain.gain.value = this.musicOn ? 0.16 : 0;

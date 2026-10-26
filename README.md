@@ -51,6 +51,10 @@ open to tuning. The main ones:
 - Escape bonus: 500 points plus 5 per second left.
 - 50 points to a trap's owner when the rival sets it off (the manual awards points but doesn't say how many).
 - The laugh lasts 2.2 s; bread crumbs are switched off on level 3.
+- The ending scene: the winner's half becomes an airfield and they fly off, with score and rank,
+  while the loser's half goes blank (as in the original). The artwork, timings, rank names and
+  score thresholds are ours; the original's rank list isn't known. If nobody escapes, both halves
+  show "Out of time".
 - All computer opponent behaviour.
 
 ## Running it locally
@@ -62,7 +66,7 @@ Tests:
 
 - `npm test` runs rule checks, then plays 30 computer-vs-computer games headless and fails on crashes or games that never end.
 - `npm run test:browser` (needs `npm i -D playwright` and the server running) loads the game in
-  Chromium on desktop and phone sizes, plays two full games with `?autoplay&speed=8`, and fails on console errors.
+  Chromium on desktop and phone sizes, plays two full games with `?autoplay&speed=8` through the ending and back to the menu, and fails on console errors.
 
 ## Switching on GitHub Pages
 
