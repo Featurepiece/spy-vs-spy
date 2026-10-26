@@ -16,6 +16,8 @@
     :root:not([data-theme="light"]) { --bg: #0d0f14; --panel: #171b23; --ink: #e8ecf2; --muted: #9aa4b2; --line: #2b3240; }
   }
   :root[data-theme="dark"] { --bg: #0d0f14; --panel: #171b23; --ink: #e8ecf2; --muted: #9aa4b2; --line: #2b3240; }
+  @font-face { font-family: "Black Ops One"; src: url(assets/fonts/black-ops-one.woff2) format("woff2"); font-display: swap; }
+  @font-face { font-family: "Special Elite"; src: url(assets/fonts/special-elite.woff2) format("woff2"); font-display: swap; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
   #wrap { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left)); }
@@ -23,15 +25,8 @@
   .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,7,10,0.82); padding: 16px; z-index: 10; overflow-y: auto; touch-action: pan-y; }
   .overlay[hidden] { display: none; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 24px; max-width: 640px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.5); margin: auto; }
-  h1 { margin: 0 0 4px; font-size: clamp(32px, 7vw, 52px); letter-spacing: 0.02em; line-height: 1; }
-  h1 .r { color: var(--red); } h1 .b { color: var(--blue); }
   .tag { color: var(--muted); margin: 0 0 18px; font-size: 14px; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 18px 0 8px; }
-  .seg { display: flex; flex-wrap: wrap; gap: 8px; }
-  .seg button, .actions button { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; min-height: 40px; }
-  .seg button small { display: block; color: var(--muted); font-size: 11px; }
-  .seg button[aria-pressed="true"] { background: var(--btn-on); color: #111; border-color: var(--btn-on); }
-  .seg button[aria-pressed="true"] small { color: #333; }
+  .actions button { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; min-height: 40px; }
   .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
   .actions .go { background: var(--red); border-color: var(--red); color: #fff; font-weight: 700; font-size: 18px; padding: 10px 28px; }
   table.keys { border-collapse: collapse; font-size: 14px; width: 100%; }
@@ -41,6 +36,38 @@
   .how li { margin: 3px 0; }
   .fine { font-size: 12px; color: var(--muted); margin-top: 18px; }
   .result { font-size: 28px; font-weight: 800; margin: 0 0 6px; }
+  /* ---------- front menu ---------- */
+  #title { background: radial-gradient(ellipse at center, rgba(8,12,22,0.55), rgba(5,7,12,0.88)); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+  .menu { width: 100%; max-width: 560px; margin: auto; background: linear-gradient(#1a2133, #121827); border: 1px solid #2f3a52; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.65); }
+  .hero { position: relative; aspect-ratio: 16 / 7; background: #0f1626 center / cover no-repeat; border-bottom: 1px solid #2f3a52; }
+  .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hero.has-art canvas { display: none; }
+  .logo { position: absolute; left: 0; right: 0; top: 10px; text-align: center; font-family: "Black Ops One", system-ui, sans-serif; font-size: clamp(34px, 9vw, 58px); line-height: 1; letter-spacing: 0.03em; text-shadow: 0 3px 0 #000, 0 0 24px rgba(0,0,0,0.8); }
+  .logo .r { color: var(--red); } .logo .b { color: var(--blue); }
+  .logo-img { max-width: 86%; max-height: 46%; }
+  .file { position: absolute; left: 12px; bottom: 10px; font-family: "Special Elite", ui-monospace, monospace; font-size: 12px; color: #cdd6e4; background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 3px; }
+  #menuMain, .sub { padding: 18px 22px 20px; }
+  .tagline { font-family: "Special Elite", ui-monospace, monospace; color: #c3ccda; font-size: 14px; margin: 0 0 14px; text-align: center; }
+  #menuList { display: flex; flex-direction: column; gap: 6px; }
+  .item { display: flex; align-items: center; gap: 10px; width: 100%; font: 18px "Black Ops One", system-ui, sans-serif; letter-spacing: 0.04em; color: var(--ink); background: #222b3e; border: 1px solid #323e57; border-radius: 8px; padding: 9px 14px; min-height: 48px; cursor: pointer; text-align: left; }
+  .item::before { content: "▶"; font-size: 12px; color: transparent; width: 12px; }
+  .item.sel { background: #2e3a55; border-color: var(--gold); }
+  .item.sel::before { color: var(--gold); }
+  .item.primary { background: #8e2620; border-color: var(--red); font-size: 22px; }
+  .item.primary.sel { background: #b4352c; border-color: var(--gold); }
+  .item .lab { flex: 0 0 auto; }
+  .item .opt { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .item .val { font: 600 14px system-ui, sans-serif; letter-spacing: 0; text-align: center; min-width: 9.5em; }
+  .item .val small { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+  .arrow { font: 14px system-ui; color: var(--gold); background: #161c2a; border: 1px solid #3a4763; border-radius: 6px; width: 34px; height: 34px; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 12px; text-align: center; margin: 12px 0 0; }
+  .sub h3 { font-family: "Black Ops One", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.04em; margin: 0 0 10px; font-size: 20px; }
+  .sub .back { margin-top: 16px; }
+  .menu .fine { padding: 0 22px 16px; margin: 0; }
+  @media (max-width: 420px) {
+    .item { font-size: 16px; padding: 8px 10px; }
+    .item .val { min-width: 7.5em; }
+  }
   #touch { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; max-height: 260px; display: none; pointer-events: none; z-index: 5; }
   #touch.on { display: block; }
   #stickzone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; }
@@ -63,7 +90,7 @@
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="game" width="960" height="640" aria-label="Game screen"></canvas></div>
+<div id="wrap"><canvas id="game" width="1048" height="748" aria-label="Game screen"></canvas></div>
 
 <div id="hud">
   <button id="musicBtn" title="Music on/off (N)">♪ Music</button>
@@ -85,21 +112,28 @@
 </div>
 
 <div class="overlay" id="title">
-  <div class="card">
-    <h1><span class="r">Double</span> <span class="b">Agents</span></h1>
-    <p class="tag">Two rival spies, one embassy, one plane out. Find the four items and the briefcase, booby-trap everything, and reach the airport exit first.</p>
-
-    <h2>Embassy size</h2>
-    <div class="seg" id="levelSeg"></div>
-    <h2>Computer spy</h2>
-    <div class="seg" id="iqSeg"></div>
-
-    <div class="actions">
-      <button class="go" id="startBtn">Start mission</button>
+  <div class="menu">
+    <div class="hero" id="hero">
+      <canvas id="heroArt" width="1120" height="490" aria-hidden="true"></canvas>
+      <div class="logo" id="logo"><span class="r">DOUBLE</span> <span class="b">AGENTS</span></div>
+      <div class="file">FILE 84 · EYES ONLY</div>
     </div>
 
-    <h2>How to play</h2>
-    <ul class="how">
+    <div id="menuMain">
+      <p class="tagline">Two rival spies. One embassy. One plane out.</p>
+      <nav id="menuList" aria-label="Main menu">
+        <button class="item primary" id="startBtn" data-act="start"><span class="lab">Start mission</span></button>
+        <div class="item" data-set="level" role="button" tabindex="0"><span class="lab">Embassy</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Smaller">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Bigger">▶</button></span></div>
+        <div class="item" data-set="iq" role="button" tabindex="0"><span class="lab">Rival</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Easier">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Harder">▶</button></span></div>
+        <button class="item" data-panel="how"><span class="lab">How to play</span></button>
+        <button class="item" data-panel="keys"><span class="lab">Controls</span></button>
+      </nav>
+      <p class="hint" id="menuHint"></p>
+    </div>
+
+    <section class="sub" id="howPanel" hidden>
+      <h3>How to play</h3>
+      <ul class="how">
       <li>You are <b style="color:var(--red)">Scarlet</b> (top). The computer is <b style="color:var(--blue)">Cobalt</b> (bottom).</li>
       <li>Search furniture for the <b>passport, money, key and plans</b>. Without the <b>briefcase</b> you can carry only one thing.</li>
       <li>Pick a trap, then set it on furniture (bomb, spring) or in a doorway (bucket, gun). The time bomb goes off 15 s after you drop it. Your own traps catch you too.</li>
@@ -108,9 +142,12 @@
       <li>Arrows under your room point the way back through the last 9 rooms (Levels 1 and 2).</li>
       <li>Getting caught costs 27 s of your clock. Run out of time and the plane leaves without you.</li>
     </ul>
+      <button class="item back"><span class="lab">Back</span></button>
+    </section>
 
-    <h2>Controls</h2>
-    <table class="keys">
+    <section class="sub" id="keysPanel" hidden>
+      <h3>Controls</h3>
+      <table class="keys">
       <tr><td>WASD / arrows</td><td>Move (up walks toward the back wall; walk into a doorway to go through)</td></tr>
       <tr><td>Space / E</td><td>Search furniture, or set the trap you're holding</td></tr>
       <tr><td>1 – 5 / Q</td><td>Pick a trap (press again to put it away) · Q cycles</td></tr>
@@ -121,6 +158,9 @@
       <tr><td>N · Esc</td><td>Music on/off · Pause</td></tr>
       <tr><td>Gamepad</td><td>Stick/D-pad move · A use · B hide · X jab · Y smash · LB/RB traps · Back map</td></tr>
     </table>
+      <button class="item back"><span class="lab">Back</span></button>
+    </section>
+
     <p class="fine">Original art, sound and characters. A non-commercial fan tribute to First Star Software's 1984 Commodore 64 game. Working title.</p>
   </div>
 </div>

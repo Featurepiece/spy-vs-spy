@@ -1,11 +1,21 @@
 // Draws the game with plain canvas shapes: no image files. Each half of the
-// screen shows one spy's room plus their gadget panel.
+// screen is a security monitor showing one spy's room, with their gadget
+// panel beside it.
 
 import { TUNING } from './tuning.js';
 import { ITEMS, TRAPS, TRAP_BY_ID } from './data.js';
 import { getFocus, inCombat, remedyName } from './sim.js';
 
 export const W = 960, H = 640, HALF = 320, VIEW_W = 720;
+
+// The canvas holds one "slot" per camera: a monitor casing around the 720x320
+// room picture, and the gadget beside it. Rooms and panels are drawn in the
+// old 960x320 half-screen coordinates and shifted into place.
+export const CANVAS_W = 1048, SLOT_H = 374;
+const SCREEN_X = 24, SCREEN_Y = 20; // top-left of the room picture inside a slot
+const PANEL_DX = 46; // how far right of the screen's edge the gadget panel sits
+const SCREEN_R = 16; // rounded corners of the picture tube
+const DISPLAY_FONT = '"Black Ops One", system-ui, sans-serif';
 
 // Room projection (half-screen coordinates). See docs/ARCHITECTURE.md.
 const CX = 360, BACK_Y = 150, FRONT_Y = 306, BACK_HW = 210, FRONT_HW = 336, TOP_BACK = 44, TOP_FRONT = 14;
@@ -44,7 +54,7 @@ export class Renderer {
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = Math.round(rect.width * dpr);
     this.canvas.height = Math.round(rect.height * dpr);
-    this.scale = this.canvas.width / W;
+    this.scale = this.canvas.width / CANVAS_W;
   }
 
   // Turn simulation events into effects.
@@ -131,8 +141,10 @@ export class Renderer {
     this.time += dt;
     const ctx = this.ctx;
     ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-    ctx.fillStyle = '#0d0f14';
-    ctx.fillRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, SLOT_H * 2);
+    bg.addColorStop(0, '#1b2742'); bg.addColorStop(1, '#121a2e');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, CANVAS_W, SLOT_H * 2);
 
     for (const f of this.fx) {
       f.life -= dt;
@@ -145,14 +157,139 @@ export class Renderer {
     order.forEach((spyIdx, half) => {
       if (spyIdx === null) return;
       ctx.save();
-      ctx.translate(0, half * HALF);
+      ctx.translate(0, half * SLOT_H);
+      this.drawGadgetBody(spyIdx);
+      ctx.save();
+      ctx.translate(SCREEN_X, SCREEN_Y);
       this.drawHalf(state, spyIdx, dt, opts);
+      this.drawGlass(spyIdx);
+      ctx.restore();
+      this.drawMonitor(state, spyIdx);
       ctx.restore();
     });
-    if (order.length === 2) {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, HALF - 2, W, 4);
+  }
+
+  // ---------- the security monitors ----------
+
+  // The casing goes on last, so anything that spills past the picture (screen
+  // shake, effects) is hidden behind the bezel.
+  drawMonitor(state, viewer) {
+    const ctx = this.ctx;
+    const x = 6, y = 6, w = VIEW_W + 36, h = HALF + 56;
+    const sx = SCREEN_X, sy = SCREEN_Y;
+    const shell = ctx.createLinearGradient(0, y, 0, y + h);
+    shell.addColorStop(0, '#7a8293'); shell.addColorStop(0.08, '#5d6575'); shell.addColorStop(1, '#3d4350');
+    ctx.save();
+    ctx.beginPath();
+    roundRectPath(ctx, x, y, w, h, 22);
+    roundRectPath(ctx, sx, sy, VIEW_W, HALF, SCREEN_R);
+    ctx.fillStyle = shell;
+    ctx.fill('evenodd');
+    // Dark inner bezel ring around the glass
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#16181d';
+    roundRect(ctx, sx - 3, sy - 3, VIEW_W + 6, HALF + 6, SCREEN_R + 3); ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    roundRect(ctx, x + 1.5, y + 1.5, w - 3, h - 3, 21); ctx.stroke();
+    // Name plate under the screen
+    const col = SPY_COLORS[viewer];
+    const name = state ? state.spies[viewer].name.toUpperCase() : '';
+    const py = sy + HALF + 8, pw = 220, px = x + w / 2 - pw / 2;
+    ctx.fillStyle = '#1c1f26';
+    roundRect(ctx, px, py, pw, 20, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+    roundRect(ctx, px + 0.5, py + 0.5, pw - 1, 19, 4); ctx.stroke();
+    ctx.font = `14px ${DISPLAY_FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = col.ui;
+    ctx.fillText(`CAM ${viewer + 1} · ${name}`, px + pw / 2, py + 11);
+    // Screws, power light and two knobs
+    ctx.fillStyle = '#2a2e37';
+    for (const [cx, cy] of [[x + 12, y + 12], [x + w - 12, y + 12], [x + 12, y + h - 12], [x + w - 12, y + h - 12]]) {
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
     }
+    ctx.fillStyle = '#5dff7a';
+    ctx.shadowColor = '#5dff7a'; ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.arc(x + w - 40, py + 10, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    for (const kx of [x + 40, x + 66]) {
+      ctx.fillStyle = '#23262d';
+      ctx.beginPath(); ctx.arc(kx, py + 10, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8d95a5'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(kx, py + 10); ctx.lineTo(kx + 5, py + 5); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Scanlines, a darker rim, a soft reflection and the camera caption, over the picture.
+  drawGlass(viewer) {
+    const ctx = this.ctx;
+    if (!this.scanlines) {
+      const c = document.createElement('canvas');
+      c.width = 4; c.height = 3;
+      const g = c.getContext('2d');
+      g.fillStyle = 'rgba(0,0,0,0.13)';
+      g.fillRect(0, 2, 4, 1);
+      this.scanlines = ctx.createPattern(c, 'repeat');
+    }
+    ctx.save();
+    roundRect(ctx, 0, 0, VIEW_W, HALF, SCREEN_R);
+    ctx.clip();
+    ctx.fillStyle = this.scanlines;
+    ctx.fillRect(0, 0, VIEW_W, HALF);
+    const vig = ctx.createRadialGradient(VIEW_W / 2, HALF / 2, HALF * 0.55, VIEW_W / 2, HALF / 2, VIEW_W * 0.62);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.42)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, VIEW_W, HALF);
+    const glare = ctx.createLinearGradient(0, 0, VIEW_W * 0.6, HALF);
+    glare.addColorStop(0, 'rgba(255,255,255,0.07)'); glare.addColorStop(0.35, 'rgba(255,255,255,0.02)'); glare.addColorStop(0.36, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glare;
+    ctx.fillRect(0, 0, VIEW_W, HALF);
+    // Camera caption, top left
+    ctx.font = `12px ${DISPLAY_FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(ctx, 10, 8, 78, 18, 3); ctx.fill();
+    if (Math.sin(this.time * 4) > -0.3) {
+      ctx.fillStyle = '#ff3b30';
+      ctx.beginPath(); ctx.arc(20, 17, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(`REC  CAM ${viewer + 1}`, 29, 18);
+    ctx.restore();
+  }
+
+  // The gadget's own case behind its panel, and the curly cable to the monitor.
+  drawGadgetBody(viewer) {
+    const ctx = this.ctx;
+    const col = SPY_COLORS[viewer];
+    const x = SCREEN_X + VIEW_W + PANEL_DX - 9, y = SCREEN_Y - 10, w = W - VIEW_W + 18, h = HALF + 20;
+    ctx.save();
+    // Coiled cable from the bottom of the gadget round to the monitor's side
+    ctx.strokeStyle = '#4a5162'; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    const cx0 = x + 40, cy0 = y + h, cx1 = SCREEN_X + VIEW_W + 12, cy1 = SCREEN_Y + HALF + 8;
+    for (let i = 0; i <= 60; i++) {
+      const t = i / 60;
+      const bx = cx0 + (cx1 - cx0) * t, by = cy0 + 8 * Math.sin(Math.PI * t) + (cy1 - cy0) * t;
+      const px = bx + Math.cos(t * Math.PI * 18) * 5, py = by + Math.sin(t * Math.PI * 18) * 5;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+    // Stubby antenna
+    ctx.fillStyle = '#2b2f38';
+    roundRect(ctx, x + w - 36, y - 5, 18, 10, 3); ctx.fill();
+    ctx.fillStyle = col.coat;
+    ctx.beginPath(); ctx.arc(x + w - 27, y - 3, 3.5, 0, Math.PI * 2); ctx.fill();
+    // Case
+    const body = ctx.createLinearGradient(x, 0, x + w, 0);
+    body.addColorStop(0, '#4a5060'); body.addColorStop(1, '#30343e');
+    ctx.fillStyle = body;
+    roundRect(ctx, x, y, w, h, 14); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1.5;
+    roundRect(ctx, x + 1, y + 1, w - 2, h - 2, 13); ctx.stroke();
+    ctx.restore();
   }
 
   drawHalf(state, viewer, dt, opts) {
@@ -169,8 +306,7 @@ export class Renderer {
     }
 
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, VIEW_W, HALF);
+    roundRect(ctx, 0, 0, VIEW_W, HALF, SCREEN_R);
     ctx.clip();
     if (v.shake > 0.1) {
       ctx.translate((Math.random() - 0.5) * v.shake * 2, (Math.random() - 0.5) * v.shake * 2);
@@ -184,8 +320,11 @@ export class Renderer {
       v.flash -= dt * 1.6;
     }
     if (v.fade > 0) {
-      ctx.fillStyle = `rgba(0,0,0,${v.fade / TUNING.juice.fade})`;
+      // Switching cameras: the picture drops out to static for a moment.
+      const k = v.fade / TUNING.juice.fade;
+      ctx.fillStyle = `rgba(0,0,0,${k * 0.7})`;
       ctx.fillRect(-10, -10, VIEW_W + 20, HALF + 20);
+      this.drawStatic(k * 0.75);
       v.fade -= dt;
     }
     if (!spy.mapOpen && state.level < TUNING.crumbs.offFromLevel) this.drawCrumbs(spy);
@@ -208,8 +347,10 @@ export class Renderer {
     const t = opts.ending.t;
     const spy = state.spies[viewer];
     if (state.winner !== viewer) {
+      // The camera feed is switched off; the gadget stays lit.
       ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, W, HALF);
+      ctx.fillRect(0, 0, VIEW_W, HALF);
+      this.drawPanel(state, spy, viewer, opts);
       if (state.winner === null) {
         // Nobody escaped [ours]: the plane leaves without either spy.
         this.label('OUT OF TIME', VIEW_W / 2, HALF / 2 - 14, 28, SPY_COLORS[viewer].ui, null, 'bold');
@@ -263,6 +404,30 @@ export class Renderer {
     }
     ctx.restore();
     this.drawPanel(state, spy, viewer, opts);
+  }
+
+  drawStatic(alpha) {
+    const ctx = this.ctx;
+    if (!this.noise) {
+      this.noise = [0, 1, 2].map(() => {
+        const c = document.createElement('canvas');
+        c.width = 180; c.height = 80;
+        const g = c.getContext('2d');
+        const img = g.createImageData(c.width, c.height);
+        for (let i = 0; i < img.data.length; i += 4) {
+          const n = Math.random() * 255;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = n;
+          img.data[i + 3] = 255;
+        }
+        g.putImageData(img, 0, 0);
+        return c;
+      });
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.noise[Math.floor(Math.random() * 3)], 0, 0, VIEW_W, HALF);
+    ctx.restore();
   }
 
   // Bread crumbs: read right to left, each arrow is the door to take to go back one room.
@@ -603,6 +768,14 @@ export class Renderer {
 
   drawPanel(state, spy, viewer, opts) {
     const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(PANEL_DX, 0);
+    this.drawPanelFace(state, spy, viewer, opts);
+    ctx.restore();
+  }
+
+  drawPanelFace(state, spy, viewer, opts) {
+    const ctx = this.ctx;
     const col = SPY_COLORS[viewer];
     const x0 = VIEW_W, w = W - VIEW_W;
     const grad = ctx.createLinearGradient(x0, 0, W, 0);
@@ -834,6 +1007,11 @@ function tri(ctx, x, y, s) {
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
+  roundRectPath(ctx, x, y, w, h, r);
+}
+
+// Adds a rounded rectangle to the current path without starting a new one.
+function roundRectPath(ctx, x, y, w, h, r) {
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
   ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -855,7 +1033,7 @@ function poseOf(s) {
 }
 
 // Our spy design: round head, dark glasses, wide-brim hat and a belted coat.
-function drawSpyFigure(ctx, x, y, k, face, o) {
+export function drawSpyFigure(ctx, x, y, k, face, o) {
   const { col, pose } = o;
   const white = o.flash ? '#ffffff' : null;
   const angel = pose === 'angel';
