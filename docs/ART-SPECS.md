@@ -6,6 +6,10 @@ Until each one arrives, the menu shows a code-drawn placeholder marked
 "PLACEHOLDER ART" (or our own lettering, for the logo).
 
 When a file is ready, put it in `assets/` and set its entry in `src/art.js`.
+Files are used exactly as supplied, at full size and quality: never re-encode,
+resize or compress them. The one exception is cutting out a solid background
+for transparency (as was done for the logo), which keeps the full resolution and
+is saved as a lossless PNG.
 
 ## Rules for every picture
 
