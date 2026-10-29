@@ -313,7 +313,7 @@ export class Renderer {
       v.shake = Math.max(0, v.shake - TUNING.juice.shakeDecay * dt * v.shake * 0.5 - dt * 4);
     }
     this.drawRoom(state, spy.room, viewer, opts);
-    if (spy.mapOpen) this.drawMap(state, spy);
+    if (spy.mapOpen) this.drawMap(state, spy, opts);
     if (v.flash > 0) {
       ctx.fillStyle = `rgba(255,255,255,${Math.min(0.6, v.flash)})`;
       ctx.fillRect(-10, -10, VIEW_W + 20, HALF + 20);
@@ -657,7 +657,17 @@ export class Renderer {
     if (s.invuln > 0 && Math.floor(this.time * 16) % 2) ctx.globalAlpha = 0.4;
     const pose = poseOf(s);
     const flash = s.stun > TUNING.combat.hitstun - 0.08 && s.stun > 0;
-    if (s.armed === 'gun') {
+    if (s.armed === 'gun' && s.view && s.view !== 'side') {
+      // Seen from the front or back, the string trails up or down the floor instead
+      const away = s.view === 'back' ? 1 : -1;
+      ctx.strokeStyle = '#e6d7b0'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 13 * k, y - 34 * k);
+      const wob = Math.sin(this.time * 6) * 4 * k;
+      ctx.quadraticCurveTo(x - 18 * k + wob, y - 8 * k, x - 14 * k, y + away * 14 * k);
+      ctx.lineTo(x - 12 * k - wob, y + away * 40 * k);
+      ctx.stroke();
+    } else if (s.armed === 'gun') {
       // The gun's string trails behind the spy until the trap is set [manual]
       ctx.strokeStyle = '#e6d7b0'; ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -668,7 +678,7 @@ export class Renderer {
       ctx.stroke();
     }
     const laugh = s.laughT > 0 && !s.action;
-    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh });
+    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh, view: s.view });
     ctx.globalAlpha = 1;
     if (laugh) {
       // "HA HA" bubbling up beside the head, fading out at the end
@@ -726,7 +736,7 @@ export class Renderer {
 
   // ---------- map ----------
 
-  drawMap(state, spy) {
+  drawMap(state, spy, opts) {
     const ctx = this.ctx;
     const { rooms, doors, furniture, grid } = state.embassy;
     ctx.fillStyle = 'rgba(8,12,20,0.9)';
@@ -761,7 +771,7 @@ export class Renderer {
       const horiz = a.gy === b.gy;
       ctx.fillRect(mx - (horiz ? 6 : 4), my - (horiz ? 4 : 6), horiz ? 12 : 8, horiz ? 8 : 12);
     }
-    this.label('EMBASSY MAP · red dot = an item is hidden there · clock runs 4× faster · M to close', VIEW_W / 2, 18, 12, '#cfe3ff', null);
+    this.label(`EMBASSY MAP · red dot = an item is hidden there · clock runs 4× faster · ${opts.mapKey ?? 'M'} to close`, VIEW_W / 2, 18, 12, '#cfe3ff', null);
   }
 
   // ---------- gadget panel ----------
@@ -1033,8 +1043,13 @@ function poseOf(s) {
 }
 
 // Our spy design: round head, dark glasses, wide-brim hat and a belted coat.
+// o.view 'front' or 'back' draws him walking down or up the screen; fighting is always side on.
 export function drawSpyFigure(ctx, x, y, k, face, o) {
   const { col, pose } = o;
+  if ((o.view === 'front' || o.view === 'back') && (pose === 'walk' || pose === 'idle' || pose === 'search')) {
+    drawSpyFrontBack(ctx, x, y, k, o.view === 'back', o);
+    return;
+  }
   const white = o.flash ? '#ffffff' : null;
   const angel = pose === 'angel';
   const coat = white || (angel ? '#f4f4ff' : col.coat);
@@ -1144,6 +1159,135 @@ export function drawSpyFigure(ctx, x, y, k, face, o) {
     ctx.beginPath(); ctx.ellipse(x - 16 * k, by - 46 * k - flap, 9 * k, 14 * k, -0.5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(x + 16 * k, by - 46 * k - flap, 9 * k, 14 * k, 0.5, 0, Math.PI * 2); ctx.fill();
   }
+  if (o.stun) {
+    ctx.fillStyle = '#ffe066';
+    for (let i = 0; i < 3; i++) {
+      const a = o.t * 8 + (i * Math.PI * 2) / 3;
+      ctx.beginPath(); ctx.arc(x + Math.cos(a) * 14 * k, hy - 18 * k + Math.sin(a) * 4 * k, 2.5 * k, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+// The same spy seen square on: from the front (walking down) or the back (walking up).
+function drawSpyFrontBack(ctx, x, y, k, back, o) {
+  const { col, pose } = o;
+  const white = o.flash ? '#ffffff' : null;
+  const coat = white || col.coat;
+  const dark = white || col.dark;
+  const skin = white || '#f0c9a0';
+  const shoe = white || '#222';
+  const walking = pose === 'walk';
+  const crouch = pose === 'search' ? 6 * k : 0;
+  const bob = walking ? Math.abs(Math.sin(o.walk)) * 2 * k : 0;
+  const by = y - crouch - bob;
+  const lift = o.laugh ? Math.abs(Math.sin(o.t * 17)) * 3.5 * k : 0;
+  const uy = by - lift;
+  // Seen end on, a stride shows as one foot lifting while the other is planted
+  const stepL = walking ? Math.max(0, Math.sin(o.walk)) * 5 * k : 0;
+  const stepR = walking ? Math.max(0, -Math.sin(o.walk)) * 5 * k : 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(x, y, 16 * k, 5 * k, 0, 0, Math.PI * 2); ctx.fill();
+  // Legs and shoes: toes towards us from the front, heels from the back
+  ctx.fillStyle = dark;
+  ctx.fillRect(x - 7 * k, by - 22 * k, 5 * k, 20 * k + crouch * 0.3 - stepL);
+  ctx.fillRect(x + 2 * k, by - 22 * k, 5 * k, 20 * k + crouch * 0.3 - stepR);
+  ctx.fillStyle = shoe;
+  const shoeH = back ? 2.5 * k : 3.5 * k;
+  ctx.beginPath(); ctx.ellipse(x - 4.5 * k, y - 2 * k - stepL, 3.5 * k, shoeH, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + 4.5 * k, y - 2 * k - stepR, 3.5 * k, shoeH, 0, 0, Math.PI * 2); ctx.fill();
+  // Coat
+  ctx.fillStyle = coat;
+  ctx.beginPath();
+  ctx.moveTo(x - 11 * k - lift * 0.4, uy - 54 * k);
+  ctx.lineTo(x + 11 * k + lift * 0.4, uy - 54 * k);
+  ctx.lineTo(x + 16 * k, by - 18 * k);
+  ctx.lineTo(x - 16 * k, by - 18 * k);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = dark;
+  ctx.fillRect(x - 14 * k, by - 36 * k, 28 * k, 4 * k); // belt
+  ctx.strokeStyle = dark; ctx.lineWidth = 1.5 * k;
+  ctx.beginPath();
+  if (back) {
+    // Centre seam and the vent at the hem
+    ctx.moveTo(x, uy - 52 * k); ctx.lineTo(x, by - 36 * k);
+    ctx.moveTo(x, by - 32 * k); ctx.lineTo(x, by - 18 * k);
+  } else {
+    // Lapels meeting in a V
+    ctx.moveTo(x - 6 * k, uy - 54 * k); ctx.lineTo(x, by - 40 * k);
+    ctx.moveTo(x + 6 * k, uy - 54 * k); ctx.lineTo(x, by - 40 * k);
+  }
+  ctx.stroke();
+  if (!back) {
+    ctx.fillStyle = white || col.band;
+    ctx.fillRect(x - 2 * k, by - 36 * k, 4 * k, 4 * k); // buckle
+  }
+
+  // Arms swing opposite to the legs. The club is in his right hand:
+  // screen left from the front, screen right from the back.
+  const clubSide = back ? 1 : -1;
+  const arms = [-1, 1].map((side) => {
+    const sh = [x + side * 11 * k, uy - 50 * k];
+    let hand;
+    if (pose === 'search') {
+      // Rummaging: reaching up from behind, at chest height from the front
+      hand = [x + side * 9 * k, uy - (back ? 58 : 42) * k + Math.sin(o.t * 20 + side) * 3 * k];
+    } else if (o.laugh && side !== clubSide) {
+      hand = [x + side * 4 * k, by - 32 * k]; // hand on the belly
+    } else {
+      const sw = walking ? Math.sin(o.walk) * side * 2.5 * k : 0;
+      hand = [x + side * 14 * k, uy - 36 * k + sw];
+    }
+    return { side, sh, hand };
+  });
+  const club = arms.find((a) => a.side === clubSide);
+  const tip = pose === 'search'
+    ? [club.hand[0] + clubSide * 6 * k, club.hand[1] + (back ? -16 : 16) * k]
+    : [club.hand[0] + clubSide * 4 * k, club.hand[1] + 19 * k];
+  const drawArm = ({ sh, hand }) => {
+    ctx.strokeStyle = coat; ctx.lineWidth = 6 * k; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(...sh); ctx.lineTo(...hand); ctx.stroke();
+    ctx.fillStyle = skin;
+    ctx.beginPath(); ctx.arc(hand[0], hand[1], 3 * k, 0, Math.PI * 2); ctx.fill();
+  };
+  ctx.strokeStyle = white || '#6b4423'; ctx.lineWidth = 5 * k; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(...club.hand); ctx.lineTo(...tip); ctx.stroke();
+  arms.forEach(drawArm);
+  ctx.lineCap = 'butt';
+
+  // Head
+  const hy = uy - 63 * k - lift * 0.5;
+  ctx.fillStyle = skin;
+  ctx.beginPath(); ctx.arc(x - 10 * k, hy + 1 * k, 2.5 * k, 0, Math.PI * 2); ctx.fill(); // ears
+  ctx.beginPath(); ctx.arc(x + 10 * k, hy + 1 * k, 2.5 * k, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, hy, 10 * k, 0, Math.PI * 2); ctx.fill();
+  if (back) {
+    // Hair at the back of the head and the turned-up coat collar
+    ctx.fillStyle = white || '#4a3326';
+    ctx.beginPath(); ctx.ellipse(x, hy - 1 * k, 9 * k, 7 * k, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = dark;
+    roundRect(ctx, x - 8 * k, uy - 57 * k, 16 * k, 5 * k, 2 * k); ctx.fill();
+  } else {
+    // Dark glasses: two lenses on a bridge
+    ctx.fillStyle = white || '#111';
+    roundRect(ctx, x - 8.5 * k, hy - 3 * k, 7.5 * k, 5 * k, 2 * k); ctx.fill();
+    roundRect(ctx, x + 1 * k, hy - 3 * k, 7.5 * k, 5 * k, 2 * k); ctx.fill();
+    ctx.fillRect(x - 1.5 * k, hy - 2 * k, 3 * k, 1.5 * k);
+    // Nose
+    ctx.fillStyle = white || '#e2b088';
+    ctx.beginPath(); ctx.arc(x, hy + 3.5 * k, 2.2 * k, 0, Math.PI * 2); ctx.fill();
+    if (o.laugh) {
+      ctx.fillStyle = '#5a1a14';
+      ctx.beginPath(); ctx.ellipse(x, hy + 6 * k, 5 * k, 2.5 * k + lift * 0.4, 0, 0, Math.PI); ctx.fill();
+    }
+  }
+  // Hat
+  ctx.fillStyle = dark;
+  ctx.beginPath(); ctx.ellipse(x, hy - 7 * k, 16 * k, 3.5 * k, 0, 0, Math.PI * 2); ctx.fill();
+  roundRect(ctx, x - 9 * k, hy - 17 * k, 18 * k, 11 * k, 3 * k); ctx.fill();
+  ctx.fillStyle = white || col.band;
+  ctx.fillRect(x - 9 * k, hy - 10 * k, 18 * k, 3 * k);
+
   if (o.stun) {
     ctx.fillStyle = '#ffe066';
     for (let i = 0; i < 3; i++) {

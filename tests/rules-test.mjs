@@ -67,4 +67,22 @@ const idle = [EMPTY_INPUT, EMPTY_INPUT];
   check('auto-faces the rival', me.face === 1);
 }
 
+// Walking up the screen shows the spy's back, walking down his front, sideways his side.
+{
+  const s = createGame({ seed: 5 });
+  const me = s.spies[0];
+  me.x = 0.5; me.z = 0.5;
+  run(s, [{ ...EMPTY_INPUT, mz: -1 }, EMPTY_INPUT], 5);
+  check('walking up shows the back', me.view === 'back');
+  run(s, idle, 5);
+  check('standing still keeps the view', me.view === 'back');
+  run(s, [{ ...EMPTY_INPUT, mz: 1 }, EMPTY_INPUT], 5);
+  check('walking down shows the front', me.view === 'front');
+  run(s, [{ ...EMPTY_INPUT, mx: 1, mz: 1 }, EMPTY_INPUT], 5);
+  check('a diagonal shows the side', me.view === 'side' && me.face === 1);
+  run(s, [{ ...EMPTY_INPUT, mz: 1 }, EMPTY_INPUT], 5);
+  run(s, [{ ...EMPTY_INPUT, jab: true }, EMPTY_INPUT]);
+  check('swinging turns side on', me.view === 'side');
+}
+
 process.exit(failed ? 1 : 0);

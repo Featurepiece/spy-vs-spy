@@ -32,6 +32,7 @@ export function createGame({ level = 0, cpuIq = 1, seed = (Math.random() * 2 ** 
     vx: 0,
     vz: 0,
     face: idx === 0 ? 1 : -1,
+    view: 'side', // side | back (walking up the screen) | front (walking down) [Steven: as the original]
     state: 'alive', // alive | dead | out | escaped
     stateT: 0,
     hp: TUNING.combat.maxHp,
@@ -278,6 +279,7 @@ function handleInput(state, spy, inp) {
       const r = rivalOf(state, spy);
       if (Math.abs(r.x - spy.x) > 0.005) spy.face = r.x > spy.x ? 1 : -1;
     }
+    spy.view = 'side'; // swings are drawn from the side
     spy.action = { kind: inp.heavy ? 'heavy' : 'jab', t: 0, hitDone: false };
     emit(state, 'swing', { spy: spy.idx, heavy: !!inp.heavy });
   } else if (!busy && inp.act) {
@@ -334,7 +336,12 @@ function move(state, spy, inp) {
   const kz = (Math.abs(tz) > Math.abs(spy.vz) ? m.accel : m.decel) * DT;
   spy.vx += (tx - spy.vx) * Math.min(1, kx);
   spy.vz += (tz - spy.vz) * Math.min(1, kz);
-  if (mx !== 0 && !(spy.action && spy.action.kind !== 'set' && spy.action.kind !== 'search')) spy.face = mx > 0 ? 1 : -1;
+  if ((mx !== 0 || mz !== 0) && !(spy.action && spy.action.kind !== 'set' && spy.action.kind !== 'search')) {
+    if (mx !== 0) spy.face = mx > 0 ? 1 : -1;
+    // Walking up shows the spy's back, walking down his front [Steven, from the original].
+    // On a diagonal the side view wins [ours]. The last view is kept when standing still [ours].
+    spy.view = Math.abs(mz) > Math.abs(mx) ? (mz < 0 ? 'back' : 'front') : 'side';
+  }
   spy.x += spy.vx * DT;
   spy.z += spy.vz * DT;
   if (Math.abs(spy.vx) + Math.abs(spy.vz) > 0.02) spy.walk += DT * 9;
