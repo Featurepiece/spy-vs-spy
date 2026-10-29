@@ -104,6 +104,17 @@ export const TUNING = {
     shakeHit: 3,
     shakeDecay: 10, // per second
     fade: 0.18, // room change fade, seconds
+    // The hit spy's flinch: he snaps back away from the blow, squashes, and his hat
+    // jumps off his head and drops back on. Like the original's recoil [Steven]; the numbers are [ours].
+    flinch: {
+      time: 0.3, // seconds the whole reaction lasts
+      lean: 0.2, // radians he tips back from the feet; heavy blows use heavyLean
+      heavyLean: 0.32,
+      squash: 0.1, // fraction shorter (and wider) at the moment of impact
+      hatLift: 5, // how far the hat jumps, in spy units (about 3-5 screen pixels); heavy uses heavyHatLift
+      heavyHatLift: 9,
+      hatTilt: 0.35, // radians the hat tips as it flies up
+    },
   },
 
   cpu: [
