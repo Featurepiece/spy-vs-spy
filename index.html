@@ -64,10 +64,18 @@
   .hint { color: var(--muted); font-size: 12px; text-align: center; margin: 12px 0 0; }
   .sub h3 { font-family: "Black Ops One", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.04em; margin: 0 0 10px; font-size: 20px; }
   .sub .back { margin-top: 16px; }
+  .sub .rows { display: flex; flex-direction: column; gap: 6px; }
+  .sub .rows .back { margin-top: 10px; }
+  .bar { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .bar i { width: 8px; height: 16px; border-radius: 2px; background: #3a4763; }
+  .bar i.on { background: var(--gold); }
+  #settingsPanel .item .val { min-width: 0; }
+  #settingsPanel .item .lab { flex: 1 1 auto; min-width: 0; }
   .menu .fine { padding: 0 22px 16px; margin: 0; }
   @media (max-width: 420px) {
     .item { font-size: 16px; padding: 8px 10px; }
     .item .val { min-width: 7.5em; }
+    .bar { gap: 2px; } .bar i { width: 5px; }
   }
   #touch { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; max-height: 260px; display: none; pointer-events: none; z-index: 5; }
   #touch.on { display: block; }
@@ -128,6 +136,7 @@
         <div class="item" data-set="iq" role="button" tabindex="0"><span class="lab">Rival</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Easier">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Harder">▶</button></span></div>
         <button class="item" data-panel="how"><span class="lab">How to play</span></button>
         <button class="item" data-panel="keys"><span class="lab">Controls</span></button>
+        <button class="item" data-panel="settings"><span class="lab">Settings</span></button>
       </nav>
       <p class="hint" id="menuHint"></p>
     </div>
@@ -170,6 +179,16 @@
     </table>
       <p class="fine" style="padding:0;margin-top:8px">Letters are for an Xbox-style pad; other pads use the same button positions (A is the bottom face button, ✕ on PlayStation). Press a button once after the page opens so the browser sees the controller.</p>
       <button class="item back"><span class="lab">Back</span></button>
+    </section>
+
+    <section class="sub" id="settingsPanel" hidden>
+      <h3>Settings</h3>
+      <div class="rows">
+        <div class="item" data-set="music"><span class="lab">Music</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Quieter">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Louder">▶</button></span></div>
+        <div class="item" data-set="sfx"><span class="lab">Sound effects</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Quieter">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Louder">▶</button></span></div>
+        <button class="item back"><span class="lab">Back</span></button>
+      </div>
+      <p class="hint" id="settingsHint"></p>
     </section>
 
     <p class="fine">Original art, sound and characters. A non-commercial fan tribute to First Star Software's 1984 Commodore 64 game. Working title.</p>

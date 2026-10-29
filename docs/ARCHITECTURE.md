@@ -10,7 +10,7 @@ No build step and no libraries: plain ES modules that run straight from GitHub P
 | `src/sim.js` | The game rules. Pure: no screen, keyboard or sound |
 | `src/ai.js` | The computer spy. Produces the same input frames a player does |
 | `src/render.js` | Canvas drawing: security monitors, rooms, spies, effects, gadget panel, map |
-| `src/audio.js` | WebAudio sound effects and music, all synthesised |
+| `src/audio.js` | WebAudio sound effects, all synthesised (music tracks are files in `assets/music/`, played from `main.js`) |
 | `src/input.js` | Keyboard, gamepad and touch to input frames |
 | `src/title.js` | The front menu and its placeholder title art |
 | `src/art.js` | Which optional picture files exist (see `docs/ART-SPECS.md`) |

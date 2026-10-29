@@ -52,8 +52,10 @@ async function run(name, id, isMobile) {
   await setBtn(DOWN, true); await page.waitForTimeout(800); await setBtn(DOWN, false); await page.waitForTimeout(80);
   const selIdx = () => page.evaluate(() => [...document.querySelectorAll('#menuList .item')].findIndex((b) => b.classList.contains('sel')));
   const selAfterHold = await selIdx();
-  check(selAfterHold >= 2, `${name}: holding down did not repeat (selection ${selAfterHold})`);
-  for (let i = 0; i < 5 && (await selIdx()) !== 0; i++) await press(UP);
+  const count = await page.evaluate(() => document.querySelectorAll('#menuList .item').length);
+  const stepsDown = (selAfterHold - 4 + count) % count; // steps down from Controls, wrapping round
+  check(stepsDown >= 2, `${name}: holding down did not repeat (selection ${selAfterHold})`);
+  for (let i = 0; i < 6 && (await selIdx()) !== 0; i++) await press(UP);
   await press(A); // Start mission
   check((await screen()) === 'play', `${name}: A on Start mission did not start a game`);
   check(!(await page.evaluate(() => document.getElementById('touch').classList.contains('on'))), `${name}: touch buttons showed while a controller is in use`);

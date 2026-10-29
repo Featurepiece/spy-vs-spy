@@ -1,13 +1,10 @@
-// All sound is synthesised with WebAudio: no sound files. The music loop is
-// our own short composition.
+// Sound effects are synthesised with WebAudio: no sound files. The music is
+// Steven's own tracks, played from main.js.
 
 export class Audio {
   constructor() {
     this.ctx = null;
-    this.musicOn = true;
-    this.musicTimer = null;
-    this.nextNote = 0;
-    this.step = 0;
+    this.sfxVol = 8;
   }
 
   // Browsers only allow sound after a key press or tap.
@@ -19,9 +16,9 @@ export class Audio {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.5;
       this.master.connect(this.ctx.destination);
-      this.musicGain = this.ctx.createGain();
-      this.musicGain.gain.value = 0.16;
-      this.musicGain.connect(this.master);
+      this.sfx = this.ctx.createGain();
+      this.sfx.connect(this.master);
+      this.setSfxVolume(this.sfxVol);
       this.noiseBuf = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
       const d = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -39,7 +36,7 @@ export class Audio {
     if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(out || this.master);
+    o.connect(g).connect(out || this.sfx);
     o.start(t);
     o.stop(t + dur + 0.02);
   }
@@ -57,7 +54,7 @@ export class Audio {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(out || this.master);
+    src.connect(f).connect(g).connect(out || this.sfx);
     src.start(t, Math.random() * 0.5);
     src.stop(t + dur + 0.02);
   }
@@ -152,40 +149,9 @@ export class Audio {
     if (won) [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.22, { vol: 0.1, delay: E.rankAt + i * 0.11, type: 'triangle' }));
   }
 
-  toggleMusic() {
-    this.musicOn = !this.musicOn;
-    if (this.musicGain) this.musicGain.gain.value = this.musicOn ? 0.16 : 0;
-    return this.musicOn;
-  }
-
-  // A sneaky staccato bassline with off-beat ticks. Our own tune.
-  startMusic() {
-    if (!this.ctx || this.musicTimer) return;
-    const bpm = 132, eighth = 60 / bpm / 2;
-    // Semitones above A1 (55 Hz); null = rest
-    const bass = [0, null, 0, 3, null, 5, 6, null, 7, null, 7, 6, 5, null, 3, null,
-                  0, null, 0, 3, null, 5, 6, null, 10, 8, 7, null, 6, 5, 3, null];
-    const lead = [null, null, null, null, 12, null, null, null, null, null, 15, null, 14, null, null, null,
-                  null, null, null, null, 12, null, null, 17, null, null, 15, null, 14, null, 12, null];
-    this.nextNote = this.ctx.currentTime + 0.1;
-    this.step = 0;
-    const schedule = () => {
-      while (this.nextNote < this.ctx.currentTime + 0.25) {
-        const i = this.step % bass.length;
-        const t = this.nextNote - this.ctx.currentTime;
-        if (bass[i] !== null) this.tone(55 * Math.pow(2, bass[i] / 12) * 2, eighth * 0.8, { type: 'triangle', vol: 0.9, delay: t, out: this.musicGain });
-        if (lead[i] !== null) this.tone(220 * Math.pow(2, lead[i] / 12), eighth * 1.5, { type: 'square', vol: 0.18, delay: t, out: this.musicGain });
-        if (i % 2 === 1) this.noise(0.03, { vol: 0.25, freq: 8000, type: 'highpass', delay: t, out: this.musicGain });
-        this.nextNote += eighth;
-        this.step++;
-      }
-    };
-    this.musicTimer = setInterval(schedule, 50);
-    schedule();
-  }
-
-  stopMusic() {
-    clearInterval(this.musicTimer);
-    this.musicTimer = null;
+  // Effects volume, 0 to 10. 8 is the original loudness.
+  setSfxVolume(v) {
+    this.sfxVol = v;
+    if (this.sfx) this.sfx.gain.value = (v / 8) ** 2;
   }
 }
