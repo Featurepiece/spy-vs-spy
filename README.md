@@ -27,7 +27,7 @@ The two fonts in `assets/fonts/` are free fonts from Google Fonts, with their li
 - Bread-crumb arrows under the room show the way back through the last 9 rooms (levels 1 and 2).
 - When your trap catches the rival you score and your spy stops to laugh.
 - Three computer skill levels.
-- Keyboard, gamepad and touch.
+- Keyboard, game controller and touch, in the game and on the menus.
 
 ## Controls
 
@@ -41,6 +41,20 @@ The two fonts in `assets/fonts/` are free fonts from Google Fonts, with their li
 | K / X | Heavy smash |
 | M / Tab | Map (−70 points, clock runs 4× faster) |
 | N, Esc | Music, pause |
+
+| Controller | Action |
+| --- | --- |
+| Stick / D-pad | Move; choose in the menus |
+| A | Search or set a trap; select in the menus |
+| B | Hide briefcase or item; back in the menus |
+| X / Y | Jab / heavy smash |
+| LB / RB (or triggers) | Previous / next trap |
+| View (Back) | Map |
+| Menu (Start) | Pause |
+
+Letters are Xbox names for button positions; other controllers use the same positions (A is the
+bottom face button). Any connected controller works; the browser only sees a controller after a
+button on it has been pressed with the page open.
 
 ## Which rules come from the original, and which are ours
 
