@@ -655,7 +655,9 @@ export class Renderer {
       return;
     }
     if (s.invuln > 0 && Math.floor(this.time * 16) % 2) ctx.globalAlpha = 0.4;
-    const pose = poseOf(s);
+    const hitAge = state.t - s.lastHit;
+    const hit = hitAge >= 0 && hitAge < TUNING.juice.flinch.time ? { u: hitAge / TUNING.juice.flinch.time, from: s.hitFrom, heavy: s.hitHeavy } : null;
+    const pose = hit ? 'flinch' : poseOf(s);
     const flash = s.stun > TUNING.combat.hitstun - 0.08 && s.stun > 0;
     if (s.armed === 'gun' && s.view && s.view !== 'side') {
       // Seen from the front or back, the string trails up or down the floor instead
@@ -678,7 +680,7 @@ export class Renderer {
       ctx.stroke();
     }
     const laugh = s.laughT > 0 && !s.action;
-    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh, view: s.view });
+    drawSpyFigure(ctx, x, y, k, s.face, { pose, col, walk: s.walk, t: this.time, flash, action: s.action, stun: s.stun > 0 && !flash, laugh, view: s.view, hit });
     ctx.globalAlpha = 1;
     if (laugh) {
       // "HA HA" bubbling up beside the head, fading out at the end
@@ -1042,8 +1044,27 @@ function poseOf(s) {
   return Math.abs(s.vx) + Math.abs(s.vz) > 0.03 ? 'walk' : 'idle';
 }
 
+// How a struck spy moves over the flinch, with u running 0 to 1. The body is
+// thrown back on impact and held there (past the white flash, so the pose is seen
+// in colour), then rocks forward past upright and settles.
+// The hat lags: still on the head at impact, it jumps, lands, and gives a little hop.
+function flinchCurves(hit) {
+  const F = TUNING.juice.flinch;
+  const u = hit.u;
+  const v = Math.max(0, (u - 0.35) / 0.65);
+  const body = (1 - v) * (1 - v) * Math.cos(v * Math.PI * 1.2);
+  const hat = u < 0.75 ? Math.sin((Math.PI * u) / 0.75) : 0.15 * Math.sin((Math.PI * (u - 0.75)) / 0.25);
+  return {
+    lean: hit.from * (hit.heavy ? F.heavyLean : F.lean) * body,
+    squash: F.squash * Math.max(0, body) * (hit.heavy ? 1.4 : 1),
+    hatLift: (hit.heavy ? F.heavyHatLift : F.hatLift) * hat,
+    hatTilt: hit.from * F.hatTilt * hat,
+  };
+}
+
 // Our spy design: round head, dark glasses, wide-brim hat and a belted coat.
 // o.view 'front' or 'back' draws him walking down or up the screen; fighting is always side on.
+// o.hit makes him flinch from a blow: see flinchCurves.
 export function drawSpyFigure(ctx, x, y, k, face, o) {
   const { col, pose } = o;
   if ((o.view === 'front' || o.view === 'back') && (pose === 'walk' || pose === 'idle' || pose === 'search')) {
@@ -1066,6 +1087,15 @@ export function drawSpyFigure(ctx, x, y, k, face, o) {
   if (!angel) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(x, y, 16 * k, 5 * k, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  const fl = o.hit ? flinchCurves(o.hit) : null;
+  if (fl) {
+    // Tip back from the feet, squashed down and out
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(fl.lean);
+    ctx.scale(1 + fl.squash * 0.6, 1 - fl.squash);
+    ctx.translate(-x, -y);
   }
   // Legs
   const swing = pose === 'walk' ? Math.sin(o.walk) * 5 * k : 0;
@@ -1102,6 +1132,7 @@ export function drawSpyFigure(ctx, x, y, k, face, o) {
     case 'recover': ang = 0.8; break;
     case 'search': ang = 0.6 + Math.sin(o.t * 20) * 0.3; break;
     case 'angel': ang = 1.2; break;
+    case 'flinch': ang = -1.1; break; // club arm flung up
     default:
       if (o.laugh) { ang = 0.9; break; } // hand on the belly
  ang = 1.25 + (pose === 'walk' ? Math.sin(o.walk) * 0.15 : 0);
@@ -1143,13 +1174,21 @@ export function drawSpyFigure(ctx, x, y, k, face, o) {
     // Wide open grin
     ctx.fillStyle = '#5a1a14';
     ctx.beginPath(); ctx.ellipse(x + face * 4 * k, hy + 5 * k, 5 * k, 3 * k + lift * 0.4, 0, 0, Math.PI); ctx.fill();
+  } else if (fl) {
+    // Gasp
+    ctx.fillStyle = white || '#5a1a14';
+    ctx.beginPath(); ctx.ellipse(x + face * 5 * k, hy + 5.5 * k, 2 * k, 2.5 * k, 0, 0, Math.PI * 2); ctx.fill();
   }
-  // Hat
+  // Hat, jumping off his head when he is hit
+  ctx.save();
+  ctx.translate(x, hy - 7 * k - (fl ? fl.hatLift * k : 0));
+  if (fl) ctx.rotate(fl.hatTilt);
   ctx.fillStyle = dark;
-  ctx.beginPath(); ctx.ellipse(x, hy - 7 * k, 16 * k, 3.5 * k, 0, 0, Math.PI * 2); ctx.fill();
-  roundRect(ctx, x - 9 * k, hy - 17 * k, 18 * k, 11 * k, 3 * k); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 16 * k, 3.5 * k, 0, 0, Math.PI * 2); ctx.fill();
+  roundRect(ctx, -9 * k, -10 * k, 18 * k, 11 * k, 3 * k); ctx.fill();
   ctx.fillStyle = white || (angel ? '#fff' : col.band);
-  ctx.fillRect(x - 9 * k, hy - 10 * k, 18 * k, 3 * k);
+  ctx.fillRect(-9 * k, -3 * k, 18 * k, 3 * k);
+  ctx.restore();
 
   if (angel) {
     ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2.5 * k;
@@ -1166,6 +1205,7 @@ export function drawSpyFigure(ctx, x, y, k, face, o) {
       ctx.beginPath(); ctx.arc(x + Math.cos(a) * 14 * k, hy - 18 * k + Math.sin(a) * 4 * k, 2.5 * k, 0, Math.PI * 2); ctx.fill();
     }
   }
+  if (fl) ctx.restore();
 }
 
 // The same spy seen square on: from the front (walking down) or the back (walking up).

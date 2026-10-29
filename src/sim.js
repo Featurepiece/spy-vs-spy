@@ -37,6 +37,8 @@ export function createGame({ level = 0, cpuIq = 1, seed = (Math.random() * 2 ** 
     stateT: 0,
     hp: TUNING.combat.maxHp,
     lastHit: -99,
+    hitFrom: 0, // which way the last blow came from (+1 from the left), for the flinch
+    hitHeavy: false,
     regenT: 0,
     time: cfg.minutes * 60,
     score: 0,
@@ -499,6 +501,9 @@ function tryHit(state, spy, act, mv) {
   act.hitDone = true;
   r.hp -= mv.dmg;
   r.lastHit = state.t;
+  r.hitFrom = spy.face;
+  r.hitHeavy = act.kind === 'heavy';
+  r.view = 'side'; // the flinch is drawn side on
   r.stun = TUNING.combat.hitstun;
   r.action = null;
   r.vx = spy.face * mv.knock * 4;
