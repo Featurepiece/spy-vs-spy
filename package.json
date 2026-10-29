@@ -6,6 +6,6 @@
   "scripts": {
     "serve": "npx http-server -p 8123 -c-1 .",
     "test": "node tests/rules-test.mjs && node tests/sim-test.mjs",
-    "test:browser": "node tests/browser-test.mjs && node tests/full-game-test.mjs"
+    "test:browser": "node tests/browser-test.mjs && node tests/gamepad-test.mjs && node tests/full-game-test.mjs"
   }
 }

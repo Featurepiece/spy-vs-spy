@@ -29,6 +29,7 @@
   .actions button { font: inherit; color: var(--ink); background: var(--btn); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; min-height: 40px; }
   .actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
   .actions .go { background: var(--red); border-color: var(--red); color: #fff; font-weight: 700; font-size: 18px; padding: 10px 28px; }
+  .actions button.sel { outline: 2px solid var(--gold); outline-offset: 2px; }
   table.keys { border-collapse: collapse; font-size: 14px; width: 100%; }
   table.keys td { padding: 4px 8px 4px 0; vertical-align: top; }
   table.keys td:first-child { color: var(--gold); white-space: nowrap; font-family: ui-monospace, monospace; font-size: 13px; }
@@ -156,8 +157,18 @@
       <tr><td>K / X</td><td>Heavy smash (slow wind-up, double damage)</td></tr>
       <tr><td>M / Tab</td><td>Map (−70 points, clock runs 4× faster)</td></tr>
       <tr><td>N · Esc</td><td>Music on/off · Pause</td></tr>
-      <tr><td>Gamepad</td><td>Stick/D-pad move · A use · B hide · X jab · Y smash · LB/RB traps · Back map</td></tr>
     </table>
+      <h3 style="margin-top:16px">Controller</h3>
+      <table class="keys">
+      <tr><td>Stick / D-pad</td><td>Move · choose in the menus</td></tr>
+      <tr><td>A</td><td>Search or set a trap · select in the menus</td></tr>
+      <tr><td>B</td><td>Hide your briefcase or item · back in the menus</td></tr>
+      <tr><td>X / Y</td><td>Quick jab / heavy smash</td></tr>
+      <tr><td>LB / RB (or triggers)</td><td>Pick the previous / next trap (past the end puts it away)</td></tr>
+      <tr><td>View / Back</td><td>Map</td></tr>
+      <tr><td>Menu / Start</td><td>Pause</td></tr>
+    </table>
+      <p class="fine" style="padding:0;margin-top:8px">Letters are for an Xbox-style pad; other pads use the same button positions (A is the bottom face button, ✕ on PlayStation). Press a button once after the page opens so the browser sees the controller.</p>
       <button class="item back"><span class="lab">Back</span></button>
     </section>
 

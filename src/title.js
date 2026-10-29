@@ -1,4 +1,4 @@
-// The front menu: a keyboard- and touch-friendly list over the attract-mode
+// The front menu: a keyboard-, controller- and touch-friendly list over the attract-mode
 // monitors, plus the title art. Until real picture files arrive (see ART in
 // art.js) the key art is drawn here in code.
 
@@ -57,7 +57,11 @@ export function setupTitle({ settings, save, onStart, isTouch }) {
     });
   }
   for (const b of document.querySelectorAll('#title .back')) b.addEventListener('click', () => openPanel(null));
-  $('menuHint').textContent = isTouch ? 'Tap an option · ◀ ▶ change a setting' : '↑ ↓ choose · ← → change · Enter select';
+  // Labels are the controller's button names while one is in use, otherwise null.
+  const setHint = (labels) => {
+    $('menuHint').textContent = labels ? `Stick or D-pad: ↑ ↓ choose · ← → change · ${labels.a} select · ${labels.b} back`
+      : isTouch ? 'Tap an option · ◀ ▶ change a setting' : '↑ ↓ choose · ← → change · Enter select';
+  };
 
   // Called by main.js for key presses while the title screen is up.
   const onKey = (code) => {
@@ -77,7 +81,7 @@ export function setupTitle({ settings, save, onStart, isTouch }) {
 
   setupArt();
   refresh();
-  return { onKey, reset: () => { sel = 0; openPanel(null); refresh(); } };
+  return { onKey, setHint, reset: () => { sel = 0; openPanel(null); refresh(); } };
 }
 
 // Swap in the picture files when they exist; otherwise draw the placeholder.

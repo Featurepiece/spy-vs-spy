@@ -313,7 +313,7 @@ export class Renderer {
       v.shake = Math.max(0, v.shake - TUNING.juice.shakeDecay * dt * v.shake * 0.5 - dt * 4);
     }
     this.drawRoom(state, spy.room, viewer, opts);
-    if (spy.mapOpen) this.drawMap(state, spy);
+    if (spy.mapOpen) this.drawMap(state, spy, opts);
     if (v.flash > 0) {
       ctx.fillStyle = `rgba(255,255,255,${Math.min(0.6, v.flash)})`;
       ctx.fillRect(-10, -10, VIEW_W + 20, HALF + 20);
@@ -726,7 +726,7 @@ export class Renderer {
 
   // ---------- map ----------
 
-  drawMap(state, spy) {
+  drawMap(state, spy, opts) {
     const ctx = this.ctx;
     const { rooms, doors, furniture, grid } = state.embassy;
     ctx.fillStyle = 'rgba(8,12,20,0.9)';
@@ -761,7 +761,7 @@ export class Renderer {
       const horiz = a.gy === b.gy;
       ctx.fillRect(mx - (horiz ? 6 : 4), my - (horiz ? 4 : 6), horiz ? 12 : 8, horiz ? 8 : 12);
     }
-    this.label('EMBASSY MAP · red dot = an item is hidden there · clock runs 4× faster · M to close', VIEW_W / 2, 18, 12, '#cfe3ff', null);
+    this.label(`EMBASSY MAP · red dot = an item is hidden there · clock runs 4× faster · ${opts.mapKey ?? 'M'} to close`, VIEW_W / 2, 18, 12, '#cfe3ff', null);
   }
 
   // ---------- gadget panel ----------
