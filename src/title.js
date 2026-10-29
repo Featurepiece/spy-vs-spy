@@ -12,45 +12,65 @@ const IQ_NOTES = ['sets few traps', 'a fair fight', 'sneaky and fierce'];
 const OPTIONS = {
   level: { count: TUNING.levels.length, text: (i) => `${TUNING.levels[i].name}<small>${TUNING.levels[i].rooms} rooms · ${TUNING.levels[i].minutes} min</small>` },
   iq: { count: TUNING.cpu.length, text: (i) => `${TUNING.cpu[i].name}<small>${IQ_NOTES[i]}</small>` },
+  music: { count: 11, clamp: true, text: volumeBar },
+  sfx: { count: 11, clamp: true, text: volumeBar },
 };
 
-export function setupTitle({ settings, save, onStart, isTouch }) {
+function volumeBar(v) {
+  const bars = Array.from({ length: 10 }, (_, i) => `<i class="${i < v ? 'on' : ''}"></i>`).join('');
+  return `<span class="bar">${bars}</span><small>${v === 0 ? 'Off' : `${v * 10}%`}</small>`;
+}
+
+export function setupTitle({ settings, save, onStart, onChange, isTouch }) {
   const list = $('menuList');
-  const items = () => [...list.querySelectorAll('.item')];
+  // The rows you can move between: the main list, or the settings page's rows.
+  const items = () => [...(panel === 'settings' ? $('settingsPanel') : list).querySelectorAll('.item')];
   let sel = 0;
-  let panel = null; // 'how' or 'keys' while a page is open
+  let panel = null; // 'how', 'keys' or 'settings' while a page is open
 
   const refresh = () => {
-    for (const row of list.querySelectorAll('[data-set]')) {
+    for (const row of $('title').querySelectorAll('[data-set]')) {
       const key = row.dataset.set;
       row.querySelector('.val').innerHTML = OPTIONS[key].text(settings[key]);
     }
-    items().forEach((b, i) => b.classList.toggle('sel', i === sel));
+    for (const b of $('title').querySelectorAll('.item')) b.classList.remove('sel');
+    items()[sel]?.classList.add('sel');
   };
   const change = (key, d) => {
-    const n = OPTIONS[key].count;
-    settings[key] = (settings[key] + d + n) % n;
-    save(key, settings[key]);
+    const { count: n, clamp } = OPTIONS[key];
+    const v = clamp ? Math.min(n - 1, Math.max(0, settings[key] + d)) : (settings[key] + d + n) % n;
+    if (v === settings[key]) return;
+    settings[key] = v;
+    save(key, v);
+    onChange?.(key);
     refresh();
   };
+  let mainSel = 0;
   const openPanel = (name) => {
+    if (name && !panel) mainSel = sel;
     panel = name;
+    sel = name ? 0 : mainSel;
     $('menuMain').hidden = !!name;
     $('howPanel').hidden = name !== 'how';
     $('keysPanel').hidden = name !== 'keys';
+    $('settingsPanel').hidden = name !== 'settings';
     $('title').scrollTop = 0;
+    refresh();
   };
   const activate = (b) => {
     if (b.dataset.act === 'start') onStart();
-    else if (b.dataset.set) change(b.dataset.set, 1);
+    else if (b.classList.contains('back')) openPanel(null);
+    else if (b.dataset.set && !OPTIONS[b.dataset.set].clamp) change(b.dataset.set, 1);
     else if (b.dataset.panel) openPanel(b.dataset.panel);
   };
 
-  items().forEach((b, i) => {
-    b.addEventListener('click', () => { sel = i; refresh(); activate(b); });
-    b.addEventListener('pointerenter', () => { sel = i; refresh(); });
-  });
-  for (const a of list.querySelectorAll('.arrow')) {
+  for (const box of [list, $('settingsPanel')]) {
+    [...box.querySelectorAll('.item')].forEach((b, i) => {
+      if (!b.classList.contains('back')) b.addEventListener('click', () => { sel = i; refresh(); activate(b); });
+      b.addEventListener('pointerenter', () => { sel = i; refresh(); });
+    });
+  }
+  for (const a of $('title').querySelectorAll('.arrow')) {
     a.addEventListener('click', (e) => {
       e.stopPropagation();
       change(a.closest('[data-set]').dataset.set, Number(a.dataset.d));
@@ -58,13 +78,15 @@ export function setupTitle({ settings, save, onStart, isTouch }) {
   }
   for (const b of document.querySelectorAll('#title .back')) b.addEventListener('click', () => openPanel(null));
   $('menuHint').textContent = isTouch ? 'Tap an option · ◀ ▶ change a setting' : '↑ ↓ choose · ← → change · Enter select';
+  $('settingsHint').textContent = isTouch ? 'Tap ◀ ▶ to change the volume' : '↑ ↓ choose · ← → change · Esc back';
 
   // Called by main.js for key presses while the title screen is up.
   const onKey = (code) => {
-    if (panel) {
+    if (panel && panel !== 'settings') {
       if (['Escape', 'Enter', 'Space', 'Backspace'].includes(code)) openPanel(null);
       return;
     }
+    if (panel && ['Escape', 'Backspace'].includes(code)) { openPanel(null); return; }
     const all = items();
     const b = all[sel];
     if (code === 'ArrowUp' || code === 'KeyW') sel = (sel + all.length - 1) % all.length;
@@ -77,7 +99,7 @@ export function setupTitle({ settings, save, onStart, isTouch }) {
 
   setupArt();
   refresh();
-  return { onKey, reset: () => { sel = 0; openPanel(null); refresh(); } };
+  return { onKey, reset: () => { openPanel(null); sel = 0; refresh(); } };
 }
 
 // Swap in the picture files when they exist; otherwise draw the placeholder.

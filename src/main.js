@@ -26,7 +26,8 @@ const autoplay = params.has('autoplay');
 const speed = Math.max(1, Number(params.get('speed')) || 1);
 let playerBrain = null;
 
-let settings = { level: store.get('da.level', 0), iq: store.get('da.iq', 1) };
+let settings = { level: store.get('da.level', 0), iq: store.get('da.iq', 1), music: store.get('da.music', 7), sfx: store.get('da.sfx', 8), musicOn: store.get('da.musicOn', true) };
+audio.setSfxVolume(settings.sfx);
 let screen = 'title';
 let state = null, brain = null, acc = 0, last = performance.now(), overAt = 0, endT = 0;
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -68,6 +69,8 @@ const title = setupTitle({
   settings,
   save: (key, v) => store.set(`da.${key}`, v),
   onStart: () => startGame(),
+  // A short sound so you can hear the new effects volume.
+  onChange: (key) => { if (key === 'sfx') { audio.unlock(); audio.setSfxVolume(settings.sfx); audio.play({ type: 'pickup', spy: 0 }, { spies: [{}] }, 0); } },
   isTouch,
 });
 
@@ -112,18 +115,17 @@ function startGame() {
   screen = 'play';
   show(null);
   layout();
-  if (audio.musicOn) audio.startMusic();
+  gameMusic.currentTime = 0;
 }
 
 function pause(on) {
-  if (on && screen === 'play') { screen = 'paused'; show('paused'); audio.stopMusic(); }
-  else if (!on && screen === 'paused') { screen = 'play'; show(null); last = performance.now(); if (audio.musicOn) audio.startMusic(); }
+  if (on && screen === 'play') { screen = 'paused'; show('paused'); }
+  else if (!on && screen === 'paused') { screen = 'play'; show(null); last = performance.now(); }
 }
 
 function toMenu() {
   titleMusic.currentTime = 0;
   screen = 'title';
-  audio.stopMusic();
   title.reset();
   newDemo();
   show('title');
@@ -134,7 +136,6 @@ function toMenu() {
 function startEnding() {
   screen = 'ending';
   endT = 0;
-  audio.stopMusic();
   audio.ending(state.winner === null ? null : state.winner === 0, TUNING.ending);
   layout();
 }
@@ -146,13 +147,13 @@ function endingSkip() {
 $('resumeBtn').onclick = () => pause(false);
 $('quitBtn').onclick = toMenu;
 $('pauseBtn').onclick = () => (screen === 'play' ? pause(true) : pause(false));
-const musicLabel = () => ($('musicBtn').textContent = audio.musicOn ? '♪ Music' : '♪ Off');
-$('musicBtn').onclick = () => {
-  audio.unlock();
-  audio.toggleMusic();
-  if (audio.musicOn && screen === 'play') audio.startMusic();
+const musicLabel = () => ($('musicBtn').textContent = settings.musicOn ? '♪ Music' : '♪ Off');
+function toggleMusic() {
+  settings.musicOn = !settings.musicOn;
+  store.set('da.musicOn', settings.musicOn);
   musicLabel();
-};
+}
+$('musicBtn').onclick = toggleMusic;
 
 window.addEventListener('keydown', (e) => {
   audio.unlock();
@@ -164,11 +165,7 @@ window.addEventListener('keydown', (e) => {
     if (screen === 'play') pause(true);
     else if (screen === 'paused') pause(false);
   }
-  if (e.code === 'KeyN') {
-    audio.toggleMusic();
-    if (audio.musicOn && screen === 'play') audio.startMusic();
-    musicLabel();
-  }
+  if (e.code === 'KeyN') toggleMusic();
   if (screen === 'title') {
     title.onKey(e.code);
     return;
@@ -179,20 +176,30 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 setupTouch(input, $('stickzone'), $('nub'), [...document.querySelectorAll('#pad button')]);
 
-// ---------- title music ----------
+// ---------- music ----------
 
-// Steven's theme (made with Suno) plays on the front menu only. Browsers won't
-// start sound before the first key press or tap, so it waits for one.
-const titleMusic = document.createElement('audio');
-titleMusic.src = 'assets/music/title-theme.mp3';
-titleMusic.loop = true;
-titleMusic.volume = 0.5;
-titleMusic.preload = 'auto';
+// Steven's tracks (made with Suno), used exactly as supplied: one for the front
+// menu, one during play. Pausing or the ending stops the game track; it starts
+// again from the top each mission. Browsers won't start sound before the first
+// key press or tap, so both wait for one.
+function track(src) {
+  const a = document.createElement('audio');
+  a.src = src;
+  a.loop = true;
+  a.preload = 'auto';
+  return a;
+}
+const titleMusic = track('assets/music/title-theme.mp3');
+const gameMusic = track('assets/music/game-theme.mp3');
 let interacted = false;
-function updateTitleMusic() {
-  const want = interacted && screen === 'title' && audio.musicOn;
-  if (want && titleMusic.paused) titleMusic.play().catch(() => { interacted = false; });
-  else if (!want && !titleMusic.paused) titleMusic.pause();
+function updateMusic() {
+  const vol = settings.musicOn ? (settings.music / 10) ** 2 : 0;
+  const want = !interacted || vol === 0 ? null : screen === 'title' ? titleMusic : screen === 'play' ? gameMusic : null;
+  for (const m of [titleMusic, gameMusic]) {
+    m.volume = vol;
+    if (m === want && m.paused) m.play().catch(() => { interacted = false; });
+    else if (m !== want && !m.paused) m.pause();
+  }
 }
 for (const ev of ['keydown', 'pointerdown']) window.addEventListener(ev, () => { interacted = true; });
 
@@ -226,8 +233,8 @@ function frame(now) {
     const views = viewOpts.views.length === 1 ? [state.winner ?? 0] : viewOpts.views;
     renderer.draw(state, dt, { ...viewOpts, views, ending: { t: endT } });
   } else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
-  updateTitleMusic();
-  window.__game = { state, screen, titleMusic: !titleMusic.paused }; // handy for tests and debugging
+  updateMusic();
+  window.__game = { state, screen, settings, titleMusic: !titleMusic.paused, gameMusic: !gameMusic.paused }; // handy for tests and debugging
   requestAnimationFrame(frame);
 }
 
