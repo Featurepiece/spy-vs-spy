@@ -1,0 +1,13 @@
+{
+  "name": "double-agents-server",
+  "private": true,
+  "type": "module",
+  "description": "Online play server for Double Agents: a Cloudflare Worker with one Durable Object per match",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.140.0"
+  }
+}
