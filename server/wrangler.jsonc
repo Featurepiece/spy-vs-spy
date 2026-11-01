@@ -1,0 +1,10 @@
+{
+  "name": "double-agents",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-15",
+  "durable_objects": {
+    "bindings": [{ "name": "MATCH", "class_name": "Match" }]
+  },
+  // The free plan only allows SQLite-backed Durable Objects.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Match"] }]
+}

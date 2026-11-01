@@ -77,6 +77,27 @@
     .item .val { min-width: 7.5em; }
     .bar { gap: 2px; } .bar i { width: 5px; }
   }
+  /* ---------- online menu ---------- */
+  #online .menu { max-width: 520px; }
+  #online .head { padding: 16px 22px 0; display: flex; align-items: baseline; gap: 12px; }
+  #online .head h2 { font-family: "Black Ops One", system-ui, sans-serif; font-weight: 400; letter-spacing: 0.04em; margin: 0; font-size: 24px; }
+  #online .head .file { position: static; }
+  #online section { padding: 14px 22px 20px; display: flex; flex-direction: column; gap: 6px; }
+  #online section[hidden] { display: none; }
+  #online input { font: 600 16px system-ui, sans-serif; color: var(--ink); background: #161c2a; border: 1px solid #3a4763; border-radius: 6px; padding: 6px 10px; margin-left: auto; width: 11em; min-width: 0; -webkit-user-select: text; user-select: text; }
+  #online input#onCode { width: 6em; text-transform: uppercase; letter-spacing: 0.2em; text-align: center; }
+  #online .item .lab { flex: 1 1 auto; min-width: 0; }
+  #online .status { font-family: "Special Elite", ui-monospace, monospace; color: var(--gold); font-size: 14px; min-height: 1.4em; margin: 8px 0 0; text-align: center; }
+  .codebox { text-align: center; background: #0f1422; border: 1px dashed #3a4763; border-radius: 8px; padding: 10px; }
+  .codebox .code { font: 40px "Black Ops One", system-ui, sans-serif; letter-spacing: 0.25em; color: var(--gold); }
+  .codebox .link { font: 12px ui-monospace, monospace; color: var(--muted); word-break: break-all; -webkit-user-select: text; user-select: text; }
+  .player { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; background: #161c2a; border: 1px solid #2b3550; font-size: 15px; }
+  .player .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .player .who { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player .state { font: 12px "Special Elite", ui-monospace, monospace; color: var(--muted); }
+  .player.ready .state { color: #5dff7a; }
+  .chooser { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+  #netBanner { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 8; background: rgba(20,24,32,0.92); border: 1px solid var(--gold); color: var(--gold); font: 15px "Special Elite", ui-monospace, monospace; padding: 8px 16px; border-radius: 8px; max-width: calc(100% - 32px); text-align: center; }
   #touch { position: fixed; left: 0; right: 0; bottom: 0; height: 42vh; max-height: 260px; display: none; pointer-events: none; z-index: 5; }
   #touch.on { display: block; }
   #stickzone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; pointer-events: auto; }
@@ -134,6 +155,7 @@
         <button class="item primary" id="startBtn" data-act="start"><span class="lab">Start mission</span></button>
         <div class="item" data-set="level" role="button" tabindex="0"><span class="lab">Embassy</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Smaller">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Bigger">▶</button></span></div>
         <div class="item" data-set="iq" role="button" tabindex="0"><span class="lab">Rival</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Easier">◀</button><span class="val"></span><button class="arrow" data-d="1" aria-label="Harder">▶</button></span></div>
+        <button class="item" data-act="online"><span class="lab">Play a friend online</span></button>
         <button class="item" data-panel="how"><span class="lab">How to play</span></button>
         <button class="item" data-panel="keys"><span class="lab">Controls</span></button>
         <button class="item" data-panel="settings"><span class="lab">Settings</span></button>
@@ -195,9 +217,39 @@
   </div>
 </div>
 
+<div class="overlay" id="online" hidden>
+  <div class="menu">
+    <div class="head"><h2>Play a friend online</h2><span class="file">TWO COMPUTERS · ONE EMBASSY</span></div>
+    <section id="onStart">
+      <div class="item" data-act="name"><span class="lab">Your spy's name</span><input id="onName" maxlength="12" placeholder="Scarlet" autocomplete="off" spellcheck="false" aria-label="Your spy's name"></div>
+      <button class="item primary" data-act="create"><span class="lab">Create a game</span></button>
+      <div class="item" data-act="code"><span class="lab">Friend's code</span><input id="onCode" maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false" aria-label="Game code"></div>
+      <button class="item" data-act="join"><span class="lab">Join their game</span></button>
+      <button class="item" data-act="back"><span class="lab">Back</span></button>
+      <p class="status" id="onStatus" role="status"></p>
+      <p class="chooser">Whoever creates the game plays Scarlet and picks the embassy and screens. You each choose your own spy's name.</p>
+    </section>
+    <section id="onLobby" hidden>
+      <div class="codebox"><div class="code" id="lobbyCode">----</div><div class="link" id="lobbyLink"></div></div>
+      <button class="item" id="copyBtn" data-act="copy"><span class="lab">Copy invite link</span></button>
+      <div class="player" id="lobbyP0"><span class="dot" style="background:var(--red)"></span><span class="who"></span><span class="state"></span></div>
+      <div class="player" id="lobbyP1"><span class="dot" style="background:var(--blue)"></span><span class="who"></span><span class="state"></span></div>
+      <div class="item" data-set="level"><span class="lab">Embassy</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Smaller">◀</button><span class="val" id="lobbyLevel"></span><button class="arrow" data-d="1" aria-label="Bigger">▶</button></span></div>
+      <div class="item" data-set="screens"><span class="lab">Screens</span><span class="opt"><button class="arrow" data-d="-1" aria-label="Previous">◀</button><span class="val" id="lobbyScreens"></span><button class="arrow" data-d="1" aria-label="Next">▶</button></span></div>
+      <p class="chooser" id="lobbyChooser"></p>
+      <button class="item primary" id="readyBtn" data-act="ready"><span class="lab">Ready</span></button>
+      <button class="item" data-act="leave"><span class="lab">Leave</span></button>
+      <p class="status" id="lobbyStatus" role="status"></p>
+    </section>
+  </div>
+</div>
+
+<div id="netBanner" hidden></div>
+
 <div class="overlay" id="paused" hidden>
   <div class="card" style="max-width:360px;text-align:center">
-    <p class="result">Paused</p>
+    <p class="result" id="pauseTitle">Paused</p>
+    <p class="tag" id="pauseNote" hidden>The game keeps running for your rival.</p>
     <div class="actions" style="justify-content:center">
       <button class="go" id="resumeBtn">Resume</button>
       <button id="quitBtn">Quit to menu</button>

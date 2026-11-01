@@ -28,18 +28,35 @@ An input frame is `{ mx, mz, act, jab, heavy, trap, map }`: a movement direction
 one-step button presses. All randomness comes from the seeded generator stored in
 `state.rng`, so the same seed and the same inputs give the same game.
 
-## Adding online play (next step, not built yet)
+## Online play
 
-The plan is an authoritative server:
+The server is the referee. `server/src/worker.js` is a Cloudflare Worker (free plan) with one
+Durable Object per four-letter game code. It imports `src/sim.js` unchanged and runs `step` 60
+times a second; the browsers only send input and draw what they're told.
 
-1. A small Node server (WebSocket) imports `src/sim.js` unchanged and runs `step` at 60 Hz for each match.
-2. Each browser sends its input frames; the server applies them to its spy.
-3. The server sends each player a snapshot of their own view at maybe 20 Hz: their spy, their room,
-   the rival only when in the same room, their own traps. Hidden things (rival's traps, unsearched
-   furniture) never leave the server, so nobody can cheat by reading network traffic.
-4. The browser draws the latest snapshot, interpolating spy positions between snapshots, and plays the events.
+| File | Job |
+| --- | --- |
+| `server/src/worker.js` | Lobby, the 60 Hz loop, snapshots, dropouts and rejoin |
+| `src/online.js` | The browser's connection: sends input, rebuilds a drawable state from snapshots, smooths spy movement |
+| `src/lobby.js` | The online menu and briefing room (name, create/join, code and invite link, embassy, screens, Ready) |
+| `src/online-config.js` | The server's address. `?server=ws://127.0.0.1:8787` overrides it for testing |
 
-What needs adding for that: a `viewFor(state, spyIdx)` function that strips hidden information,
-a lobby (create a room code, share it with your friend), and a host for the server. The client
-code already treats the player's input and the CPU's input the same way, so the CPU brain gets
-swapped for "inputs from the network".
+Messages are JSON over one WebSocket:
+
+- Browser to server: `hello {create, name, token}`, `name`, `settings {level, screens}` (creator only),
+  `ready {on}`, `in {mx, mz, act, jab, heavy, map, hide, trap}` (only what changed), `rematch`, `leave`, `ping`.
+- Server to browser: `welcome {you}`, `lobby {players, settings, phase, countdown}`, `start` (the
+  embassy layout, once per match), `snap` (20 a second), `pause`, `resume`, `forfeit`, `error`.
+
+What each player is sent: furniture contents never leave the server except as "an item is in this
+furniture" for the map; traps are only sent to whoever set them. With **Rival's monitor off** or
+**One big monitor**, the rival (and their events) are only sent while they're in your room.
+The creator plays Scarlet and picks the embassy and the screens, which apply to both players.
+`token` is a random id kept in the browser, so reopening the invite link after a dropout gets your
+spy back; the game waits 60 s for a dropped player, then the other one wins.
+
+Running it locally: `cd server && npm ci && npx wrangler dev`, serve the game, and open it with
+`?server=ws://127.0.0.1:8787`. Tests: `server/test/loop-test.mjs` (the loop keeps up with 60 Hz),
+`server/test/match-test.mjs` (the protocol), `tests/online-test.mjs` (two browsers play each other).
+`.github/workflows/deploy-server.yml` puts the server live when it changes on main, once the
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets exist.

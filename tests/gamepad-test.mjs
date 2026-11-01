@@ -40,7 +40,7 @@ async function run(name, id, isMobile) {
   check((await level()) !== before, `${name}: D-pad right did not change the embassy size`);
   await stick(-1, 0); await page.waitForTimeout(100); await stick(0, 0); await page.waitForTimeout(80);
   check((await level()) === before, `${name}: stick left did not change the embassy size back`);
-  for (let i = 0; i < 3; i++) await press(DOWN);
+  for (let i = 0; i < 4; i++) await press(DOWN);
   await press(A);
   check(!(await page.isHidden('#keysPanel')), `${name}: A on Controls did not open it`);
   const hint = await page.textContent('#menuHint');
@@ -53,7 +53,7 @@ async function run(name, id, isMobile) {
   const selIdx = () => page.evaluate(() => [...document.querySelectorAll('#menuList .item')].findIndex((b) => b.classList.contains('sel')));
   const selAfterHold = await selIdx();
   const count = await page.evaluate(() => document.querySelectorAll('#menuList .item').length);
-  const stepsDown = (selAfterHold - 4 + count) % count; // steps down from Controls, wrapping round
+  const stepsDown = (selAfterHold - 5 + count) % count; // steps down from Controls, wrapping round
   check(stepsDown >= 2, `${name}: holding down did not repeat (selection ${selAfterHold})`);
   for (let i = 0; i < 6 && (await selIdx()) !== 0; i++) await press(UP);
   await press(A); // Start mission

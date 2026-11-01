@@ -18,6 +18,8 @@ The two fonts in `assets/fonts/` are free fonts from Google Fonts, with their li
 - Player vs computer, split screen: you (Scarlet) on top, the computer (Cobalt) below.
   Each half is a security monitor, as if you're watching the spies on camera; the
   picture drops to static when a spy changes room. On phones only your own half is shown, with touch controls.
+- Play a friend online on two computers: create a game, send the four-letter code or invite link,
+  pick your spy's name, and choose the screens (both monitors, rival's monitor off, or one big monitor).
 - A front menu (arrow keys, Enter, or tap) with the two computer spies playing on the monitors behind it.
   Its title pictures are placeholders until real art arrives: see `docs/ART-SPECS.md`.
 - Random embassies of 6, 13 or 20 rooms with 7, 12 or 15 minutes on the clock.
@@ -97,5 +99,4 @@ The game appears at https://featurepiece.github.io/spy-vs-spy/ a minute or two l
 
 ## Planned
 
-- Online player vs player between two computers, through a small real-time server.
-  The game rules already run separately from the screen so a server can run them; see `docs/ARCHITECTURE.md`.
+- Online play goes live once the Cloudflare server is set up (built; see "Online play" in `docs/ARCHITECTURE.md`).

@@ -18,13 +18,14 @@ async function run(name, viewport, isMobile) {
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/${name}-title.png` });
   if (!isMobile) {
-    // Front menu by keyboard: down to Embassy, right to change it, down twice to How to play, open and close it.
+    // Front menu by keyboard: down to Embassy, right to change it, down three times (past Rival and Play online) to How to play, open and close it.
     const level = () => page.evaluate(() => JSON.parse(localStorage.getItem('da.level') ?? '0'));
     const before = await level();
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowRight');
     if ((await level()) === before) errors.push(`${name}: right arrow did not change the embassy size`);
     await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');

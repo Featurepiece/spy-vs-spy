@@ -21,7 +21,7 @@ function volumeBar(v) {
   return `<span class="bar">${bars}</span><small>${v === 0 ? 'Off' : `${v * 10}%`}</small>`;
 }
 
-export function setupTitle({ settings, save, onStart, onChange, isTouch }) {
+export function setupTitle({ settings, save, onStart, onOnline, onChange, isTouch }) {
   const list = $('menuList');
   // The rows you can move between: the main list, or the settings page's rows.
   const items = () => [...(panel === 'settings' ? $('settingsPanel') : list).querySelectorAll('.item')];
@@ -59,6 +59,7 @@ export function setupTitle({ settings, save, onStart, onChange, isTouch }) {
   };
   const activate = (b) => {
     if (b.dataset.act === 'start') onStart();
+    else if (b.dataset.act === 'online') onOnline();
     else if (b.classList.contains('back')) openPanel(null);
     else if (b.dataset.set && !OPTIONS[b.dataset.set].clamp) change(b.dataset.set, 1);
     else if (b.dataset.panel) openPanel(b.dataset.panel);

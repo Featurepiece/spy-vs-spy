@@ -15,3 +15,16 @@ jobs:
         run: node tests/rules-test.mjs
       - name: Computer-vs-computer games run to the end without crashing
         run: node tests/sim-test.mjs 60
+  online:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the server's tools
+        working-directory: server
+        run: npm ci
+      - name: Online protocol checks against the server running locally
+        working-directory: server
+        run: node test/match-test.mjs
