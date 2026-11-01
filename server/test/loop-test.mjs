@@ -24,30 +24,40 @@ async function waitForServer() {
 
 function connect(slot) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://${base}/match/${code}?slot=${slot}&seed=42`);
+    const ws = new WebSocket(`ws://${base}/match/${code}`);
     const got = { snapshots: 0, bytes: 0, events: 0, lastTick: 0, rooms: new Set() };
     ws.onmessage = (m) => {
       const s = JSON.parse(m.data);
+      if (s.t !== 'snap') return;
       got.snapshots++;
       got.bytes += m.data.length;
       got.events += s.events.length;
       got.lastTick = s.tick;
       got.rooms.add(s.spies[slot].room);
     };
-    ws.onopen = () => resolve({ ws, got });
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ t: 'hello', create: slot === 0, token: `loop${slot}`, name: `P${slot}` }));
+      resolve({ ws, got });
+    };
     ws.onerror = reject;
   });
 }
 
 try {
   await waitForServer();
-  const players = [await connect(0), await connect(1)];
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const players = [await connect(0)];
+  await wait(300);
+  players.push(await connect(1));
+  await wait(300);
+  for (const { ws } of players) ws.send(JSON.stringify({ t: 'ready', on: true }));
+  await wait(3500); // the countdown
   // Each player changes direction every half second and sometimes searches or jabs.
   let sent = 0;
   const moves = setInterval(() => {
     for (const { ws } of players) {
       const a = Math.random() * Math.PI * 2;
-      ws.send(JSON.stringify({ mx: Math.cos(a), mz: Math.sin(a), act: Math.random() < 0.3, jab: Math.random() < 0.1 }));
+      ws.send(JSON.stringify({ t: 'in', mx: Math.round(Math.cos(a) * 4) / 4, mz: Math.round(Math.sin(a) * 4) / 4, act: Math.random() < 0.3, jab: Math.random() < 0.1 }));
       sent++;
     }
   }, 500);
