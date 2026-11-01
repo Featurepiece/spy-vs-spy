@@ -97,6 +97,7 @@ Tests:
 Settings → Pages → Build and deployment → Source: **Deploy from a branch**, Branch: **main**, folder **/ (root)**.
 The game appears at https://featurepiece.github.io/spy-vs-spy/ a minute or two later.
 
-## Planned
+## Online play server
 
-- Online play goes live once the Cloudflare server is set up (built; see "Online play" in `docs/ARCHITECTURE.md`).
+The online game server runs on Cloudflare's free plan at double-agents.stevengailey-sg.workers.dev.
+GitHub puts it live by itself when `server/` or the game rules change on main (see "Online play" in `docs/ARCHITECTURE.md`).

@@ -1,0 +1,19 @@
+name: live server check
+# Plays a short scripted match against the live online server to check it
+# keeps up on Cloudflare's free plan. Runs when the server or its address
+# changes in a pull request, or by hand from the Actions tab.
+on:
+  pull_request:
+    paths: ['src/online-config.js', 'server/test/live-check.mjs', '.github/workflows/live-server.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Two players for 30 seconds on the live server
+        working-directory: server
+        run: node test/live-check.mjs 30
