@@ -99,4 +99,4 @@ The game appears at https://featurepiece.github.io/spy-vs-spy/ a minute or two l
 
 ## Planned
 
-- Online play goes live once the Cloudflare server is set up (built; see "Online play" in `docs/ARCHITECTURE.md`).
+- (Online play is live: the server runs on Cloudflare's free plan; see "Online play" in `docs/ARCHITECTURE.md`.)
