@@ -8,6 +8,7 @@ import { Renderer, CANVAS_W, SLOT_H } from './render.js';
 import { Audio } from './audio.js';
 import { LocalInput, Gamepads, PAD, setupTouch } from './input.js';
 import { setupTitle } from './title.js';
+import { setupLobby } from './lobby.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('game');
@@ -31,6 +32,8 @@ let settings = { level: store.get('da.level', 0), iq: store.get('da.iq', 1), mus
 audio.setSfxVolume(settings.sfx);
 let screen = 'title';
 let state = null, brain = null, acc = 0, last = performance.now(), overAt = 0, endT = 0;
+// Online play: the connection, and which spy this computer plays (0 Scarlet, 1 Cobalt).
+let net = null, me = 0;
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 document.body.classList.toggle('touch', isTouch);
 
@@ -70,7 +73,7 @@ function layout() {
   const vw = window.innerWidth - 16, vh = window.innerHeight - 16;
   const portrait = vh > vw;
   const reserve = touchOn ? (portrait ? Math.min(260, vh * 0.42) : 118) : 0;
-  const h = SLOT_H * viewOpts.views.length;
+  const h = SLOT_H * activeOpts().views.length;
   const w = Math.min(vw, ((vh - reserve) * CANVAS_W) / h);
   canvas.style.width = `${Math.floor(w)}px`;
   canvas.style.height = `${Math.floor((w * h) / CANVAS_W)}px`;
@@ -85,6 +88,7 @@ const title = setupTitle({
   settings,
   save: (key, v) => store.set(`da.${key}`, v),
   onStart: () => startGame(),
+  onOnline: () => openOnline(),
   // A short sound so you can hear the new effects volume.
   onChange: (key) => { if (key === 'sfx') { audio.unlock(); audio.setSfxVolume(settings.sfx); audio.play({ type: 'pickup', spy: 0 }, { spies: [{}] }, 0); } },
   isTouch,
@@ -112,7 +116,7 @@ function runDemo(dt) {
 }
 
 function show(id) {
-  for (const o of ['title', 'paused']) $(o).hidden = o !== id;
+  for (const o of ['title', 'online', 'paused']) $(o).hidden = o !== id;
 }
 
 // The pause card: arrows (or a controller) move between Resume and Quit.
@@ -127,6 +131,8 @@ function pauseKey(code) {
 
 function startGame() {
   audio.unlock();
+  net = null;
+  me = 0;
   const seed = (Math.random() * 2 ** 31) | 0;
   state = createGame({ level: settings.level, cpuIq: settings.iq, seed });
   brain = new CpuBrain(1, settings.iq, seed ^ 0x5bd1e995);
@@ -145,11 +151,16 @@ function startGame() {
 }
 
 function pause(on) {
+  $('pauseTitle').textContent = net ? 'Menu' : 'Paused';
+  $('pauseNote').hidden = !net;
+  $('resumeBtn').textContent = net ? 'Back to the game' : 'Resume';
+  $('quitBtn').textContent = net ? 'Leave the game' : 'Quit to menu';
   if (on && screen === 'play') { screen = 'paused'; pauseSel = 0; pauseRefresh(); show('paused'); }
   else if (!on && screen === 'paused') { screen = 'play'; show(null); last = performance.now(); }
 }
 
 function toMenu() {
+  if (net) { backToLobby(); return; }
   titleMusic.currentTime = 0;
   screen = 'title';
   title.reset();
@@ -161,8 +172,9 @@ function toMenu() {
 // The ending: the winner's half becomes an airfield and they fly off, then back to the menu.
 function startEnding() {
   screen = 'ending';
+  show(null);
   endT = 0;
-  audio.ending(state.winner === null ? null : state.winner === 0, TUNING.ending);
+  audio.ending(state.winner === null ? null : state.winner === me, TUNING.ending);
   layout();
 }
 
@@ -171,7 +183,7 @@ function endingSkip() {
 }
 
 $('resumeBtn').onclick = () => pause(false);
-$('quitBtn').onclick = toMenu;
+$('quitBtn').onclick = () => (net ? leaveOnline() : toMenu());
 $('pauseBtn').onclick = () => (screen === 'play' ? pause(true) : pause(false));
 const musicLabel = () => ($('musicBtn').textContent = settings.musicOn ? '♪ Music' : '♪ Off');
 function toggleMusic() {
@@ -197,9 +209,11 @@ window.addEventListener('keydown', (e) => {
     title.onKey(e.code);
     return;
   }
+  if (screen === 'online') lobby.onKey(e.code);
 });
 window.addEventListener('pointerdown', () => { audio.unlock(); usedKeysOrTouch(); endingSkip(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) pause(true); });
+// Online the game can't stop for one player, so switching tabs doesn't pause it.
+document.addEventListener('visibilitychange', () => { if (document.hidden && !net) pause(true); });
 // Pause if the controller drops out (flat battery, cable pulled) mid-game.
 window.addEventListener('gamepaddisconnected', () => { if (pads.active) pause(true); });
 
@@ -247,6 +261,10 @@ function handlePad(dt) {
     if (dir) title.onKey(dir);
     if (p.has(PAD.a) || p.has(PAD.start)) title.onKey('Enter');
     else if (p.has(PAD.b)) title.onKey('Escape');
+  } else if (screen === 'online') {
+    if (dir) lobby.onKey(dir);
+    if (p.has(PAD.a) || p.has(PAD.start)) lobby.onKey('Enter');
+    else if (p.has(PAD.b)) lobby.onKey('Escape');
   } else if (screen === 'ending') {
     if (p.has(PAD.a) || p.has(PAD.b) || p.has(PAD.start)) endingSkip();
   }
@@ -281,6 +299,105 @@ function updateMusic() {
 }
 for (const ev of ['keydown', 'pointerdown']) window.addEventListener(ev, () => { interacted = true; });
 
+// ---------- online ----------
+
+// The view options for this computer's player. Options are indexed by spy, so
+// whichever spy we play gets the hints, key labels and own-trap reminders, and
+// is always drawn on top.
+function activeOpts() {
+  if (!net || !state) return viewOpts;
+  const rival = 1 - me;
+  const byMe = (mine, theirs) => (me === 0 ? [mine, theirs] : [theirs, mine]);
+  const screens = net.screens;
+  return {
+    ...viewOpts,
+    views: isTouch || screens === 'one' ? [me] : [me, rival],
+    hints: byMe(true, false),
+    labels: byMe('YOU', null),
+    keyLabels: byMe(viewOpts.keyLabels[0], false),
+    showOwnTraps: byMe(true, false),
+    noSignal: byMe(false, screens === 'rivalOff' && !!state.spies[rival]?.hidden),
+  };
+}
+
+const lobby = setupLobby({
+  store,
+  unlock: () => audio.unlock(),
+  onStart: (game, m) => {
+    net = game;
+    me = m.you;
+    state = net.state;
+    $('netBanner').hidden = true;
+    renderer.fx = [];
+    renderer.views.forEach((v) => Object.assign(v, { shake: 0, fade: 0, lastRoom: null, msg: null, msgT: 0, flash: 0 }));
+    renderer.views[me].msg = 'Find the four items and the briefcase!';
+    renderer.views[me].msgT = 4;
+    input.clear();
+    overAt = 0;
+    screen = 'play';
+    show(null);
+    layout();
+    gameMusic.currentTime = 0;
+  },
+  onSnap: (st, events) => {
+    renderer.handleEvents(st, events);
+    for (const e of events) audio.play(e, st, me);
+    if (st.over && !overAt) overAt = performance.now() + TUNING.ending.delay * 1000;
+  },
+  onPause: (m) => {
+    const b = $('netBanner');
+    b.hidden = false;
+    if (m.self) { b.textContent = 'Connection lost: reconnecting…'; return; }
+    const name = state?.spies[m.waiting]?.name ?? 'your rival';
+    let left = m.seconds;
+    b.textContent = `Signal lost: waiting for ${name} (${left} s)`;
+    clearInterval(onlineCountdown);
+    onlineCountdown = setInterval(() => {
+      left = Math.max(0, left - 1);
+      if (!b.hidden) b.textContent = `Signal lost: waiting for ${name} (${left} s)`;
+      if (!left) clearInterval(onlineCountdown);
+    }, 1000);
+  },
+  onResume: () => { clearInterval(onlineCountdown); $('netBanner').hidden = true; },
+  onForfeit: (m) => {
+    clearInterval(onlineCountdown);
+    $('netBanner').hidden = true;
+    backToLobby(m.winner === me ? `${m.text} You win this one.` : m.text);
+  },
+  onLeave: (text) => {
+    net = null;
+    state = null;
+    $('netBanner').hidden = true;
+    if (text) openOnline();
+    else toMenu();
+  },
+});
+let onlineCountdown = null;
+
+function openOnline() {
+  audio.unlock();
+  screen = 'online';
+  newDemo();
+  lobby.open();
+  show('online');
+  layout();
+}
+
+// After an online match (or a forfeit), both players go back to the briefing room.
+function backToLobby(text) {
+  overAt = 0;
+  state = null;
+  screen = 'online';
+  lobby.backToLobby();
+  if (text) lobby.message(text);
+  show('online');
+  layout();
+}
+
+function leaveOnline() {
+  lobby.leave();
+}
+
 // ---------- loop ----------
 
 
@@ -288,7 +405,11 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   handlePad(dt);
-  if (screen === 'play') {
+  if (net && state && (screen === 'play' || screen === 'paused')) {
+    // Online: the server runs the game; we send our input and draw what it sends back.
+    net.sendInput(screen === 'play' ? input.frame(state, me) : { mx: 0, mz: 0 });
+    if (overAt && now >= overAt) startEnding();
+  } else if (screen === 'play') {
     acc += dt * speed;
     while (acc >= DT) {
       acc -= DT;
@@ -306,12 +427,14 @@ function frame(now) {
     endT += dt;
     if (endT > TUNING.ending.autoReturn) toMenu();
   }
-  if (screen === 'title') runDemo(dt);
+  if (screen === 'title' || screen === 'online') runDemo(dt);
   else if (state && screen === 'ending') {
     // On phones only one half is shown, so show the winner's airfield.
-    const views = viewOpts.views.length === 1 ? [state.winner ?? 0] : viewOpts.views;
-    renderer.draw(state, dt, { ...viewOpts, views, ending: { t: endT } });
-  } else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
+    const opts = activeOpts();
+    const views = opts.views.length === 1 ? [state.winner ?? me] : opts.views;
+    renderer.draw(state, dt, { ...opts, views, ending: { t: endT } });
+  } else if (state && net) renderer.draw(net.smoothed(), dt, activeOpts());
+  else if (state) renderer.draw(state, screen === 'play' ? dt : 0, viewOpts);
   updateMusic();
   window.__game = { state, screen, settings, titleMusic: !titleMusic.paused, gameMusic: !gameMusic.paused }; // handy for tests and debugging
   requestAnimationFrame(frame);
@@ -320,5 +443,6 @@ function frame(now) {
 setHintLabels();
 layout();
 show('title');
+if (lobby.invited) openOnline();
 musicLabel();
 requestAnimationFrame(frame);

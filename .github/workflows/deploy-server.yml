@@ -1,0 +1,37 @@
+name: deploy online server
+# Puts the online play server (server/) live on Cloudflare whenever it, or the
+# game rules it runs, change on main. Needs two repository secrets:
+# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. Without them it does nothing.
+on:
+  push:
+    branches: [main]
+    paths: ['server/**', 'src/sim.js', 'src/embassy.js', 'src/data.js', 'src/rng.js', 'src/tuning.js', '.github/workflows/deploy-server.yml']
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check the Cloudflare secrets are set
+        id: secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare secrets not set yet, so nothing to deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 22
+      - name: Deploy
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: server
+        run: |
+          npm ci
+          npx wrangler deploy

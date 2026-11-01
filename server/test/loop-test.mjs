@@ -8,11 +8,11 @@ const PORT = 8799;
 const base = `127.0.0.1:${PORT}`;
 const code = 'TEST';
 
-const dev = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], { stdio: ['ignore', 'pipe', 'pipe'] });
+const dev = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--ip', '127.0.0.1'], { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = '';
 dev.stdout.on('data', (d) => { log += d; });
 dev.stderr.on('data', (d) => { log += d; });
-const stop = (code) => { dev.kill('SIGINT'); process.exit(code); };
+const stop = (code) => { process.kill(-dev.pid, 'SIGINT'); process.exit(code); };
 
 async function waitForServer() {
   for (let i = 0; i < 60; i++) {

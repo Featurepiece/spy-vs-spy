@@ -300,6 +300,12 @@ export class Renderer {
     const ctx = this.ctx;
     const spy = state.spies[viewer];
     const v = this.views[viewer];
+    // Online with the rival's monitor switched off: static unless they're in your room.
+    if (opts.noSignal?.[viewer]) {
+      this.drawNoSignal();
+      v.lastRoom = null;
+      return;
+    }
     if (v.lastRoom !== spy.room) {
       if (v.lastRoom !== null) v.fade = TUNING.juice.fade;
       v.lastRoom = spy.room;
@@ -404,6 +410,18 @@ export class Renderer {
     }
     ctx.restore();
     this.drawPanel(state, spy, viewer, opts);
+  }
+
+  drawNoSignal() {
+    const ctx = this.ctx;
+    ctx.save();
+    roundRect(ctx, 0, 0, VIEW_W, HALF, SCREEN_R);
+    ctx.clip();
+    ctx.fillStyle = '#0b0d10';
+    ctx.fillRect(0, 0, VIEW_W, HALF);
+    this.drawStatic(0.55);
+    this.label('NO SIGNAL', VIEW_W / 2, HALF / 2, 22, '#e8ecf2', 'rgba(0,0,0,0.7)');
+    ctx.restore();
   }
 
   drawStatic(alpha) {
